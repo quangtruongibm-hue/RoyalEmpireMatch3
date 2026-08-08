@@ -1,170 +1,206 @@
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Game Studio of Truong Phuc Group</title>
-    <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Studio of Truong Phuc Group</title>
+<link rel="stylesheet" href="style.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
 </head>
 <body>
 <header class="hero-section">
-    <div class="hero-content">
-        <h1>Khám Phá Thế Giới Ảo</h1>
-        <p>Hãy trải nghiệm những tuyệt tác game mới nhất từ Studio của chúng tôi</p>
-    </div>
-    <button id="admin-login-btn" class="admin-login-btn">Admin Login</button>
+  <div class="hero-content">
+    <h1>Khám Phá Thế Giới Ảo</h1>
+    <p>Hãy trải nghiệm những tuyệt tác game mới nhất từ Studio của chúng tôi</p>
+  </div>
+  <button id="admin-login-btn" class="admin-login-btn">Admin Login</button>
 </header>
 
 <div class="main-container">
-    <aside class="sidebar">
-        <nav>
-            <ul id="menu-list">
-                <li class="active" data-target="company-info">Giới thiệu công ty</li>
-                <li data-target="game-info">Trò chơi phát hành</li>
-                <li data-target="player-policy">Chính sách người chơi</li>
-                <li data-target="programs">Chương trình</li>
-                <li data-target="contact-support">Liên hệ hỗ trợ</li>
-            </ul>
-        </nav>
-    </aside>
+  <aside class="sidebar">
+    <nav>
+      <ul id="menu-list">
+        <li class="active" data-target="company-info">Giới thiệu công ty</li>
+        <li data-target="game-info">Trò chơi phát hành</li>
+        <li data-target="player-policy">Chính sách người chơi</li>
+        <li data-target="programs">Chương trình</li>
+        <li data-target="contact-support">Liên hệ hỗ trợ</li>
+      </ul>
+    </nav>
+  </aside>
 
-    <main class="content-area">
-        <section id="company-info" class="content-section active">
-            <h2>Giới Thiệu Công Ty</h2>
-            <div class="card" id="content-company-desc"></div>
-        </section>
+  <main class="content-area">
+    <section id="company-info" class="content-section active">
+      <h2>Giới Thiệu Công Ty</h2>
+      <div class="card" id="content-company-desc"></div>
+    </section>
 
-        <section id="game-info" class="content-section">
-            <h2>Trò Chơi Phát Hành</h2>
-            <div class="game-selector-box">
-                <label for="game-selector">Chọn trò chơi:</label>
-                <select id="game-selector">
-                    <option value="">Đang tải danh sách trò chơi...</option>
-                </select>
-            </div>
-            <div id="game-empty" class="card">Chưa có trò chơi được phát hành.</div>
-            <div id="game-detail" class="game-intro" style="display:none;">
-                <h2 id="game-title"></h2>
-                <div id="game-description" class="card"></div>
-                <div class="download-btn-container">
-                    <a id="game-download" href="#" target="_blank" rel="noopener" class="download-btn">Tải Trò Chơi trên CH Play</a>
-                </div>
-                <h3>Hình Ảnh Minh Họa</h3>
-                <div id="game-gallery" class="gallery"></div>
-                <h3>Video Trải Nghiệm</h3>
-                <div id="game-videos" class="video-container"></div>
-            </div>
-        </section>
+    <section id="game-info" class="content-section">
+      <h2>Trò Chơi Phát Hành</h2>
+      <div class="public-game-selector-wrap">
+        <label for="public-game-select">Chọn trò chơi:</label>
+        <select id="public-game-select">
+          <option value="">Đang tải danh sách trò chơi...</option>
+        </select>
+      </div>
 
-        <section id="player-policy" class="content-section">
-            <h2>Chính Sách Người Chơi</h2>
-            <div class="card" id="content-player-policy"></div>
-        </section>
+      <div id="game-public-empty" class="card">Chưa có trò chơi được phát hành.</div>
+      <div id="game-public-content" class="game-intro" hidden>
+        <h3 id="public-game-name"></h3>
+        <div id="public-game-desc" class="card"></div>
 
-        <section id="programs" class="content-section">
-            <h2>Chương Trình và Sự Kiện</h2>
-            <div id="content-programs"></div>
-        </section>
+        <div class="download-btn-container">
+          <a id="public-game-playstore" class="download-btn" href="#" target="_blank" rel="noopener">Tải Trò Chơi trên CH Play</a>
+        </div>
 
-        <section id="contact-support" class="content-section">
-            <h2>Liên Hệ Hỗ Trợ</h2>
-            <div class="contact-grid" id="content-contact-support"></div>
-        </section>
-    </main>
+        <h3>Hình Ảnh Minh Họa</h3>
+        <div id="public-game-gallery" class="gallery"></div>
+
+        <h3>Video Trải Nghiệm</h3>
+        <div id="public-game-videos" class="video-container"></div>
+      </div>
+    </section>
+
+    <section id="player-policy" class="content-section">
+      <h2>Chính Sách Người Chơi</h2>
+      <div class="card" id="content-player-policy"></div>
+    </section>
+
+    <section id="programs" class="content-section">
+      <h2>Chương Trình và Sự Kiện</h2>
+      <div id="content-programs"></div>
+    </section>
+
+    <section id="contact-support" class="content-section">
+      <h2>Liên Hệ Hỗ Trợ</h2>
+      <div class="contact-grid" id="content-contact-support"></div>
+    </section>
+  </main>
 </div>
 
 <footer class="site-footer">
-    <div class="footer-content" id="content-footer-info"></div>
+  <div class="footer-content" id="content-footer-info"></div>
 </footer>
 
-<!-- Login -->
+<!-- Đăng nhập Admin -->
 <div id="login-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-btn" id="close-login-modal">&times;</span>
-        <h2>Đăng Nhập Admin</h2>
-        <div class="form-group">
-            <label for="username">Email Admin:</label>
-            <input type="email" id="username" placeholder="admin@example.com">
-        </div>
-        <div class="form-group">
-            <label for="password">Mật khẩu:</label>
-            <input type="password" id="password">
-        </div>
-        <p id="login-error" class="error-msg"></p>
-        <button id="login-submit-btn" class="primary-btn">Đăng Nhập</button>
+  <div class="modal-content">
+    <span class="close-btn" id="close-login-modal">&times;</span>
+    <h2>Đăng Nhập Admin</h2>
+    <div class="form-group">
+      <label for="username">Email Admin:</label>
+      <input type="email" id="username" placeholder="admin@example.com" autocomplete="username">
     </div>
+    <div class="form-group">
+      <label for="password">Mật khẩu:</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+    <p id="login-error" class="error-msg"></p>
+    <button id="login-submit-btn" class="primary-btn">Đăng Nhập</button>
+  </div>
 </div>
 
-<!-- Admin -->
+<!-- Bảng điều khiển Admin -->
 <div id="admin-dashboard-modal" class="modal">
-    <div class="modal-content admin-modal-content">
-        <span class="close-btn" id="close-admin-modal">&times;</span>
-        <h2>Bảng Điều Khiển Admin</h2>
-        <button id="logout-btn" class="secondary-btn">Đăng Xuất</button>
-        <hr>
+  <div class="modal-content admin-modal-content">
+    <span class="close-btn" id="close-admin-modal">&times;</span>
+    <h2>Bảng Điều Khiển Admin</h2>
+    <button id="logout-btn" class="secondary-btn">Đăng Xuất</button>
 
-        <h3>Đổi Mật Khẩu</h3>
-        <div class="form-group">
-            <label for="new-password">Mật khẩu mới:</label>
-            <input type="password" id="new-password">
-            <button id="change-pwd-btn" class="primary-btn">Cập Nhật Mật Khẩu</button>
-            <p id="pwd-msg" class="success-msg"></p>
-        </div>
-        <hr>
+    <hr>
+    <h3>Quản Lý Trò Chơi</h3>
+    <p class="hint">Chọn một game để tải toàn bộ dữ liệu từ Firebase lên và chỉnh sửa. Nếu chọn “Thêm trò chơi mới”, form sẽ trống.</p>
 
-        <h3>Quản Lý Trò Chơi</h3>
-        <div class="form-group">
-            <label for="admin-game-selector">Trò chơi đang chỉnh sửa:</label>
-            <select id="admin-game-selector">
-                <option value="">-- Đang tải game từ Firebase... --</option>
-            </select>
-        </div>
-        <div class="admin-game-actions">
-            <button id="new-game-btn" class="secondary-btn">Thêm Game Mới</button>
-            <button id="delete-game-btn" class="danger-btn" style="display:none;">Xóa Game</button>
-            <button id="refresh-games-btn" class="secondary-btn">Tải lại danh sách</button>
-        </div>
-        <p id="admin-games-status" class="admin-help">Đang tải dữ liệu trò chơi...</p>
-
-        <div class="form-group">
-            <label for="game-name">Tên trò chơi:</label>
-            <input type="text" id="game-name" placeholder="Ví dụ: Royal Empire Match 3">
-        </div>
-        <div class="form-group">
-            <label for="game-desc">Giới thiệu trò chơi (HTML):</label>
-            <textarea id="game-desc" rows="6" placeholder="<p>...</p>"></textarea>
-        </div>
-        <div class="form-group">
-            <label for="game-play-url">Link tải CH Play:</label>
-            <input type="url" id="game-play-url" placeholder="https://play.google.com/store/apps/details?id=...">
-        </div>
-
-        <h4>3 ảnh giới thiệu</h4>
-        <div class="form-group"><label>Ảnh 1 (URL):</label><input type="url" id="game-image-1"></div>
-        <div class="form-group"><label>Ảnh 2 (URL):</label><input type="url" id="game-image-2"></div>
-        <div class="form-group"><label>Ảnh 3 (URL):</label><input type="url" id="game-image-3"></div>
-
-        <h4>3 video giới thiệu</h4>
-        <p class="admin-help">Nhập link YouTube dạng <b>https://www.youtube.com/embed/VIDEO_ID</b> để hiển thị trực tiếp.</p>
-        <div class="form-group"><label>Video 1 (URL):</label><input type="url" id="game-video-1"></div>
-        <div class="form-group"><label>Video 2 (URL):</label><input type="url" id="game-video-2"></div>
-        <div class="form-group"><label>Video 3 (URL):</label><input type="url" id="game-video-3"></div>
-
-        <button id="save-game-btn" class="primary-btn">Lưu Trò Chơi</button>
-        <p id="game-msg" class="success-msg"></p>
-        <hr>
-
-        <h3>Nội Dung Chung Website</h3>
-        <div class="form-group"><label for="edit-company-desc">Giới thiệu công ty (HTML):</label><textarea id="edit-company-desc" rows="4"></textarea></div>
-        <div class="form-group"><label for="edit-player-policy">Chính sách người chơi (HTML):</label><textarea id="edit-player-policy" rows="4"></textarea></div>
-        <div class="form-group"><label for="edit-programs">Chương trình và sự kiện (HTML):</label><textarea id="edit-programs" rows="4"></textarea></div>
-        <div class="form-group"><label for="edit-contact-support">Liên hệ hỗ trợ (HTML):</label><textarea id="edit-contact-support" rows="4"></textarea></div>
-        <div class="form-group"><label for="edit-footer-info">Thông tin Footer (HTML):</label><textarea id="edit-footer-info" rows="2"></textarea></div>
-        <button id="save-content-btn" class="primary-btn">Lưu Nội Dung Chung</button>
-        <button id="reload-content-btn" class="secondary-btn" type="button">Tải lại từ Firebase</button>
-        <p id="save-msg" class="success-msg"></p>
+    <div class="form-group">
+      <label for="admin-game-select">Trò chơi đang chỉnh sửa:</label>
+      <select id="admin-game-select">
+        <option value="">-- Thêm trò chơi mới --</option>
+      </select>
     </div>
+
+    <div class="button-row">
+      <button id="new-game-btn" class="secondary-btn">Thêm Game Mới</button>
+      <button id="delete-game-btn" class="danger-btn">Xóa Game</button>
+      <button id="reload-games-btn" class="secondary-btn">Tải lại Games</button>
+    </div>
+
+    <div class="form-group">
+      <label for="edit-game-name">Tên trò chơi:</label>
+      <input id="edit-game-name" type="text" placeholder="Ví dụ: Royal Empire Match 3">
+    </div>
+
+    <div class="form-group">
+      <label for="edit-game-desc">Giới thiệu trò chơi (HTML):</label>
+      <textarea id="edit-game-desc" rows="8" placeholder="<p>...</p>"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="edit-game-playstore">Link tải CH Play:</label>
+      <input id="edit-game-playstore" type="url" placeholder="https://play.google.com/store/apps/details?id=...">
+    </div>
+
+    <h4>3 ảnh giới thiệu</h4>
+    <p class="hint">Có thể nhập <strong>tên file trong GitHub</strong>, ví dụ <code>royal-empire-1.jpg</code>; đường dẫn <code>images/royal-empire-1.jpg</code>; hoặc <strong>URL ảnh từ website khác</strong>. URL GitHub dạng <code>/blob/</code> cũng được tự chuyển sang raw.</p>
+
+    <div class="form-group">
+      <label for="edit-game-image1">Ảnh 1:</label>
+      <input id="edit-game-image1" type="text" placeholder="royal-empire-1.jpg hoặc https://...">
+      <div id="image-preview-1" class="asset-preview"></div>
+    </div>
+    <div class="form-group">
+      <label for="edit-game-image2">Ảnh 2:</label>
+      <input id="edit-game-image2" type="text" placeholder="royal-empire-2.jpg hoặc https://...">
+      <div id="image-preview-2" class="asset-preview"></div>
+    </div>
+    <div class="form-group">
+      <label for="edit-game-image3">Ảnh 3:</label>
+      <input id="edit-game-image3" type="text" placeholder="royal-empire-3.jpg hoặc https://...">
+      <div id="image-preview-3" class="asset-preview"></div>
+    </div>
+
+    <h4>3 video giới thiệu</h4>
+    <p class="hint">Có thể nhập <strong>tên file trong GitHub</strong>, ví dụ <code>royal-empire-1.mp4</code>; URL MP4/WebM từ nơi khác; hoặc link YouTube. Video GitHub nên nhỏ vì GitHub không phải dịch vụ lưu video chuyên dụng.</p>
+
+    <div class="form-group">
+      <label for="edit-game-video1">Video 1:</label>
+      <input id="edit-game-video1" type="text" placeholder="royal-empire-1.mp4 hoặc https://youtube.com/...">
+      <div id="video-preview-1" class="asset-preview video-preview"></div>
+    </div>
+    <div class="form-group">
+      <label for="edit-game-video2">Video 2:</label>
+      <input id="edit-game-video2" type="text" placeholder="royal-empire-2.mp4 hoặc https://youtube.com/...">
+      <div id="video-preview-2" class="asset-preview video-preview"></div>
+    </div>
+    <div class="form-group">
+      <label for="edit-game-video3">Video 3:</label>
+      <input id="edit-game-video3" type="text" placeholder="royal-empire-3.mp4 hoặc https://youtube.com/...">
+      <div id="video-preview-3" class="asset-preview video-preview"></div>
+    </div>
+
+    <button id="save-game-btn" class="primary-btn">Lưu Trò Chơi lên Firebase</button>
+    <p id="game-msg" class="success-msg"></p>
+
+    <hr>
+    <h3>Đổi Mật Khẩu</h3>
+    <div class="form-group">
+      <label for="new-password">Mật khẩu mới:</label>
+      <input type="password" id="new-password" autocomplete="new-password">
+      <button id="change-pwd-btn" class="primary-btn">Cập Nhật Mật Khẩu</button>
+      <p id="pwd-msg" class="success-msg"></p>
+    </div>
+
+    <hr>
+    <h3>Chỉnh Sửa Nội Dung Chung</h3>
+    <p class="hint">Các nội dung này được lưu trong Firestore tại <code>siteContent/site</code>.</p>
+    <div class="form-group"><label for="edit-company-desc">Giới thiệu công ty (HTML):</label><textarea id="edit-company-desc" rows="6"></textarea></div>
+    <div class="form-group"><label for="edit-player-policy">Chính sách người chơi (HTML):</label><textarea id="edit-player-policy" rows="6"></textarea></div>
+    <div class="form-group"><label for="edit-programs">Chương trình và sự kiện (HTML):</label><textarea id="edit-programs" rows="6"></textarea></div>
+    <div class="form-group"><label for="edit-contact-support">Liên hệ hỗ trợ (HTML):</label><textarea id="edit-contact-support" rows="6"></textarea></div>
+    <div class="form-group"><label for="edit-footer-info">Thông tin Footer (HTML):</label><textarea id="edit-footer-info" rows="4"></textarea></div>
+    <button id="save-content-btn" class="primary-btn">Lưu Nội Dung Chung</button>
+    <button id="reload-content-btn" class="secondary-btn">Tải lại từ Firebase</button>
+    <p id="save-msg" class="success-msg"></p>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
@@ -172,13 +208,13 @@
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
 <script>
 const firebaseConfig = {
-    apiKey: "AIzaSyBi9u061D6ARlrU8FBr6eObaknVrnfJYbk",
-    authDomain: "royal-empire-match-3.firebaseapp.com",
-    projectId: "royal-empire-match-3",
-    storageBucket: "royal-empire-match-3.firebasestorage.app",
-    messagingSenderId: "399013413886",
-    appId: "1:399013413886:web:bcfd6c7ce91075bc72f6af",
-    measurementId: "G-RH3VR0NHBV"
+  apiKey: "AIzaSyBi9u061D6ARlrU8FBr6eObaknVrnfJYbk",
+  authDomain: "royal-empire-match-3.firebaseapp.com",
+  projectId: "royal-empire-match-3",
+  storageBucket: "royal-empire-match-3.firebasestorage.app",
+  messagingSenderId: "399013413886",
+  appId: "1:399013413886:web:bcfd6c7ce91075bc72f6af",
+  measurementId: "G-RH3VR0NHBV"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
