@@ -308,6 +308,27 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+    apiKey: "AIzaSyBi9u061D6ARlrU8FBr6eObaknVrnfJYbk",
+    authDomain: "royal-empire-match-3.firebaseapp.com",
+    projectId: "royal-empire-match-3",
+    storageBucket: "royal-empire-match-3.firebasestorage.app",
+    messagingSenderId: "399013413886",
+    appId: "1:399013413886:web:bcfd6c7ce91075bc72f6af",
+    measurementId: "G-RH3VR0NHBV"
+};
+
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+</script>
+
+<script src="script.js"></script>
 </body>
 </html>
