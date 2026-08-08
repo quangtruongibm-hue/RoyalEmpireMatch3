@@ -391,3 +391,38 @@ hr {
         width: 100%;
     }
 }
+
+/* ===== Multi-game additions ===== */
+.game-selector-box {
+    margin-bottom: 25px;
+    padding: 18px;
+    background: rgba(59, 130, 246, 0.08);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+}
+.game-selector-box label { display:block; margin-bottom:8px; font-weight:600; }
+.game-selector-box select,
+.admin-modal-content select {
+    width:100%;
+    padding:12px;
+    border:1px solid var(--border-color);
+    background:var(--bg-main);
+    color:white;
+    border-radius:6px;
+}
+#game-title { margin-bottom:20px; }
+#game-description { margin-bottom:20px; }
+.admin-game-actions { display:flex; gap:10px; margin-bottom:20px; }
+.admin-game-actions button { width:auto; margin:0; }
+.danger-btn {
+    background:#b91c1c; color:white; border:0; padding:8px 16px;
+    border-radius:6px; cursor:pointer; font-weight:600;
+}
+.danger-btn:hover { background:#991b1b; }
+.admin-help { color:var(--text-secondary); font-size:.9rem; margin-bottom:15px; }
+.admin-modal-content h4 { margin:20px 0 12px; color:var(--accent-color); }
+.video-wrapper iframe { width:100%; height:250px; border:0; display:block; }
+@media (max-width:600px) {
+    .admin-game-actions { flex-direction:column; }
+    .admin-game-actions button { width:100%; }
+}
