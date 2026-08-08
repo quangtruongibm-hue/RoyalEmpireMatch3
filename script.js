@@ -47,13 +47,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 });
             } else {
-                // Chỉ tạo dữ liệu mặc định nếu document chưa tồn tại.
-                const initialData = {};
-                contentKeys.forEach(key => {
-                    const el = document.getElementById(`content-${key}`);
-                    if (el) initialData[key] = el.innerHTML;
-                });
-                await contentDoc.set(initialData);
+                // Không tự ghi từ phía website công khai.
+                // Site content nên được tạo/chỉnh sửa từ Admin.
+                console.warn('Firebase chưa có siteContent/site.');
             }
         } catch (error) {
             console.error('Lỗi tải siteContent:', error);
@@ -506,7 +502,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         try {
             const snapshot = await contentDoc.get();
 
-            if (!snapshot.exists()) {
+            if (!snapshot.exists) {
                 msg.style.color = '#f59e0b';
                 msg.textContent = 'Firebase chưa có siteContent/site.';
                 return;
