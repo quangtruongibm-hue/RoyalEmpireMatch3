@@ -1,5 +1,7 @@
 document.addEventListener('DOMContentLoaded', async () => {
   const $ = (id) => document.getElementById(id);
+
+  // Firebase is initialized in index.html before this file is loaded.
   const contentKeys = ['company-desc', 'player-policy', 'programs', 'contact-support', 'footer-info'];
   const contentDoc = db.collection('siteContent').doc('site');
   const gamesCollection = db.collection('games');
@@ -17,31 +19,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     el.style.color = ok ? '#10b981' : '#ef4444';
   }
 
-  function isExternalUrl(value) {
-    return /^(https?:|data:|blob:|\/)/i.test((value || '').trim());
+  function clean(value) {
+    return typeof value === 'string' ? value.trim() : '';
   }
 
-  // Allows: royal.jpg, images/royal.jpg, /images/royal.jpg, or any full URL.
-  function normalizeAsset(value, folder) {
-    let v = (value || '').trim();
-    if (!v) return '';
-
-    // GitHub "blob" URLs are converted to the raw file URL.
-    v = githubBlobToRaw(v);
-
-    if (isExternalUrl(v)) return v;
-    if (v.startsWith(`${folder}/`)) return v;
-    if (v.startsWith(`./${folder}/`)) return v.slice(2);
-    return `${folder}/${v.replace(/^\/+/, '')}`;
+  function isExternalUrl(value) {
+    return /^(https?:|data:|blob:|\/)/i.test(clean(value));
   }
 
   function githubBlobToRaw(value) {
     try {
       const u = new URL(value);
-      if (u.hostname === 'github.com' && u.pathname.includes('/blob/')) {
+      if (u.hostname.toLowerCase() === 'github.com' && u.pathname.includes('/blob/')) {
         const parts = u.pathname.split('/').filter(Boolean);
         const blobIndex = parts.indexOf('blob');
-        if (parts.length > blobIndex + 2) {
+        if (blobIndex >= 2 && parts.length > blobIndex + 2) {
           const owner = parts[0];
           const repo = parts[1];
           const branch = parts[blobIndex + 1];
@@ -51,6 +43,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     } catch (_) {}
     return value;
+  }
+
+  // Accepts a GitHub filename, images/file.jpg, /images/file.jpg, or a full URL.
+  function normalizeAsset(value, folder) {
+    let v = clean(value);
+    if (!v) return '';
+    v = githubBlobToRaw(v);
+    if (isExternalUrl(v)) return v;
+    if (v.startsWith(`${folder}/`)) return v;
+    if (v.startsWith(`./${folder}/`)) return v.slice(2);
+    return `${folder}/${v.replace(/^\/+/, '')}`;
   }
 
   function youtubeEmbed(url) {
@@ -74,25 +77,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     return '';
   }
 
-  function clearPreview(containerId) {
-    const box = $(containerId);
-    if (box) box.innerHTML = '';
+  function clearPreview(id) {
+    const el = $(id);
+    if (el) el.innerHTML = '';
   }
 
   function previewImage(inputId, previewId) {
     const input = $(inputId);
     const preview = $(previewId);
     if (!input || !preview) return;
-    const url = normalizeAsset(input.value, 'images');
+
+    const raw = clean(input.value);
     preview.innerHTML = '';
-    if (!url) return;
+    if (!raw) return;
 
     const img = document.createElement('img');
-    img.src = url;
+    img.src = normalizeAsset(raw, 'images');
     img.alt = 'Xem trước ảnh';
     img.loading = 'lazy';
     img.onerror = () => {
-      preview.innerHTML = '<span class="preview-error">Không tải được ảnh. Kiểm tra URL hoặc tên file.</span>';
+      preview.innerHTML = '<span class="preview-error">Không tải được ảnh. Kiểm tra tên file hoặc URL.</span>';
     };
     preview.appendChild(img);
   }
@@ -101,15 +105,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     const input = $(inputId);
     const preview = $(previewId);
     if (!input || !preview) return;
-    const url = normalizeAsset(input.value, 'videos');
-    preview.innerHTML = '';
-    if (!url) return;
 
+    const raw = clean(input.value);
+    preview.innerHTML = '';
+    if (!raw) return;
+
+    const url = normalizeAsset(raw, 'videos');
     const embed = youtubeEmbed(url);
+
     if (embed) {
       const iframe = document.createElement('iframe');
       iframe.src = embed;
       iframe.title = 'Xem trước video';
+      iframe.loading = 'lazy';
       iframe.allowFullscreen = true;
       iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
       preview.appendChild(iframe);
@@ -121,7 +129,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     video.controls = true;
     video.preload = 'metadata';
     video.onerror = () => {
-      preview.innerHTML = '<span class="preview-error">Không phát được video. Hãy kiểm tra URL hoặc định dạng MP4/WebM.</span>';
+      preview.innerHTML = '<span class="preview-error">Không phát được video. Kiểm tra URL hoặc định dạng MP4/WebM.</span>';
     };
     preview.appendChild(video);
   }
@@ -130,23 +138,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     [1, 2, 3].forEach((n) => {
       const imageInput = $(`edit-game-image${n}`);
       const videoInput = $(`edit-game-video${n}`);
-      if (imageInput) {
-        imageInput.addEventListener('input', () => previewImage(`edit-game-image${n}`, `image-preview-${n}`));
-      }
-      if (videoInput) {
-        videoInput.addEventListener('input', () => previewVideo(`edit-game-video${n}`, `video-preview-${n}`));
-      }
+      if (imageInput) imageInput.addEventListener('input', () => previewImage(`edit-game-image${n}`, `image-preview-${n}`));
+      if (videoInput) videoInput.addEventListener('input', () => previewVideo(`edit-game-video${n}`, `video-preview-${n}`));
     });
   }
 
   // ---------- Tabs ----------
-  const menuItems = document.querySelectorAll('#menu-list li');
-  const sections = document.querySelectorAll('.content-section');
-  menuItems.forEach((item) => {
+  document.querySelectorAll('#menu-list li').forEach((item) => {
     item.addEventListener('click', () => {
-      menuItems.forEach((i) => i.classList.remove('active'));
+      document.querySelectorAll('#menu-list li').forEach((i) => i.classList.remove('active'));
+      document.querySelectorAll('.content-section').forEach((s) => s.classList.remove('active'));
       item.classList.add('active');
-      sections.forEach((s) => s.classList.remove('active'));
       const target = $(item.getAttribute('data-target'));
       if (target) target.classList.add('active');
     });
@@ -177,24 +179,138 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ---------- Game data compatibility ----------
+  // Reads both the current field names and common older field names.
+  function firstString(data, keys) {
+    for (const key of keys) {
+      const value = data?.[key];
+      if (typeof value === 'string' && clean(value)) return clean(value);
+    }
+    return '';
+  }
+
+  function readAssetArray(data, type) {
+    const field = type === 'image' ? 'images' : 'videos';
+    const prefix = type === 'image' ? 'image' : 'video';
+    const result = [];
+
+    if (Array.isArray(data?.[field])) {
+      data[field].forEach((v) => {
+        if (typeof v === 'string' && clean(v)) result.push(clean(v));
+      });
+    }
+
+    for (let i = 1; i <= 3; i++) {
+      const value = firstString(data, [
+        `${prefix}${i}`,
+        `${prefix}_${i}`,
+        `${prefix}-${i}`,
+        `${field}${i}`,
+        `${field}_${i}`
+      ]);
+      if (value && !result.includes(value)) result.push(value);
+    }
+
+    return result.slice(0, 3);
+  }
+
+  function normalizeGame(doc) {
+    const data = doc.data() || {};
+    return {
+      id: doc.id,
+      ...data,
+      name: firstString(data, ['name', 'title', 'gameName']),
+      description: firstString(data, ['description', 'gameDescription', 'desc', 'content']),
+      playStoreUrl: firstString(data, ['playStoreUrl', 'playStoreLink', 'playStore', 'downloadUrl', 'downloadLink', 'googlePlayUrl']),
+      images: readAssetArray(data, 'image'),
+      videos: readAssetArray(data, 'video')
+    };
+  }
+
+  async function getGameFresh(gameId) {
+    if (!gameId) return null;
+    const snapshot = await gamesCollection.doc(gameId).get();
+    if (!snapshot.exists) return null;
+    return normalizeGame(snapshot);
+  }
+
+  function gameToFormValues(game) {
+    const images = game.images || [];
+    const videos = game.videos || [];
+    return {
+      name: game.name || '',
+      description: game.description || '',
+      playStoreUrl: game.playStoreUrl || '',
+      image1: images[0] || '',
+      image2: images[1] || '',
+      image3: images[2] || '',
+      video1: videos[0] || '',
+      video2: videos[1] || '',
+      video3: videos[2] || ''
+    };
+  }
+
   // ---------- Public games ----------
-  function renderPublicGameSelect() {
+  function renderPublicGameSelect(selectedId = '') {
     const select = $('public-game-select');
+    if (!select) return;
     select.innerHTML = '';
+
     if (!gamesCache.length) {
       select.innerHTML = '<option value="">-- Chưa có game --</option>';
       return;
     }
+
     gamesCache.forEach((game) => {
       const option = document.createElement('option');
       option.value = game.id;
-      option.textContent = game.name;
+      option.textContent = game.name || '(Game chưa có tên)';
       select.appendChild(option);
     });
+
+    const exists = gamesCache.some((g) => g.id === selectedId);
+    select.value = exists ? selectedId : gamesCache[0].id;
   }
 
-  function renderPublicGame(gameId) {
-    const game = gamesCache.find((g) => g.id === gameId);
+  function appendPublicImage(gallery, game, value, index) {
+    const raw = clean(value);
+    if (!raw) return;
+    const img = document.createElement('img');
+    img.src = normalizeAsset(raw, 'images');
+    img.alt = `${game.name} - Ảnh ${index + 1}`;
+    img.loading = 'lazy';
+    img.onerror = () => img.remove();
+    gallery.appendChild(img);
+  }
+
+  function appendPublicVideo(videosBox, game, value, index) {
+    const raw = clean(value);
+    if (!raw) return;
+
+    const url = normalizeAsset(raw, 'videos');
+    const wrap = document.createElement('div');
+    wrap.className = 'video-wrapper';
+
+    const embed = youtubeEmbed(url);
+    if (embed) {
+      const iframe = document.createElement('iframe');
+      iframe.src = embed;
+      iframe.title = `${game.name} - Video ${index + 1}`;
+      iframe.loading = 'lazy';
+      iframe.allowFullscreen = true;
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+      wrap.appendChild(iframe);
+    } else {
+      const video = document.createElement('video');
+      video.src = url;
+      video.controls = true;
+      video.preload = 'metadata';
+      wrap.appendChild(video);
+    }
+    videosBox.appendChild(wrap);
+  }
+
+  function renderPublicGame(game) {
     const empty = $('game-public-empty');
     const content = $('game-public-content');
     if (!game) {
@@ -219,73 +335,65 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const gallery = $('public-game-gallery');
     gallery.innerHTML = '';
-    [game.image1, game.image2, game.image3].forEach((src, index) => {
-      const url = normalizeAsset(src, 'images');
-      if (!url) return;
-      const img = document.createElement('img');
-      img.src = url;
-      img.alt = `${game.name} - Ảnh ${index + 1}`;
-      img.loading = 'lazy';
-      img.onerror = () => img.remove();
-      gallery.appendChild(img);
-    });
+    (game.images || []).slice(0, 3).forEach((value, i) => appendPublicImage(gallery, game, value, i));
 
     const videos = $('public-game-videos');
     videos.innerHTML = '';
-    [game.video1, game.video2, game.video3].forEach((src, index) => {
-      const url = normalizeAsset(src, 'videos');
-      if (!url) return;
-      const wrap = document.createElement('div');
-      wrap.className = 'video-wrapper';
-      const embed = youtubeEmbed(url);
-      if (embed) {
-        const iframe = document.createElement('iframe');
-        iframe.src = embed;
-        iframe.title = `${game.name} - Video ${index + 1}`;
-        iframe.loading = 'lazy';
-        iframe.allowFullscreen = true;
-        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
-        wrap.appendChild(iframe);
-      } else {
-        const video = document.createElement('video');
-        video.src = url;
-        video.controls = true;
-        video.preload = 'metadata';
-        wrap.appendChild(video);
-      }
-      videos.appendChild(wrap);
-    });
+    (game.videos || []).slice(0, 3).forEach((value, i) => appendPublicVideo(videos, game, value, i));
+
+    // Hide headings when there is no media for that section.
+    const galleryHeading = gallery.previousElementSibling;
+    const videosHeading = videos.previousElementSibling;
+    if (galleryHeading) galleryHeading.style.display = gallery.children.length ? '' : 'none';
+    if (videosHeading) videosHeading.style.display = videos.children.length ? '' : 'none';
   }
 
   async function loadGamesPublic(keepSelected = true) {
     try {
+      const oldPublicId = keepSelected ? $('public-game-select')?.value : '';
       const snapshot = await gamesCollection.get();
       gamesCache = snapshot.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .map(normalizeGame)
         .filter((g) => g.name)
-        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
+        .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
 
-      renderPublicGameSelect();
       renderAdminGameSelect();
+      renderPublicGameSelect(oldPublicId);
 
       if (!gamesCache.length) {
-        $('game-public-empty').hidden = false;
-        $('game-public-content').hidden = true;
+        renderPublicGame(null);
         return;
       }
 
-      let current = keepSelected ? $('public-game-select').value : '';
-      if (!gamesCache.some((g) => g.id === current)) current = gamesCache[0].id;
-      $('public-game-select').value = current;
-      renderPublicGame(current);
+      const id = gamesCache.some((g) => g.id === oldPublicId) ? oldPublicId : gamesCache[0].id;
+      $('public-game-select').value = id;
+
+      // Always fetch the selected game again so recently edited Firebase data is shown.
+      const fresh = await getGameFresh(id);
+      if (fresh) {
+        gamesCache = gamesCache.map((g) => g.id === id ? fresh : g);
+        renderPublicGame(fresh);
+      } else {
+        renderPublicGame(gamesCache.find((g) => g.id === id));
+      }
     } catch (error) {
       console.error('Lỗi tải games:', error);
-      $('public-game-select').innerHTML = '<option value="">Không tải được danh sách game</option>';
+      if ($('public-game-select')) $('public-game-select').innerHTML = '<option value="">Không tải được danh sách game</option>';
       setMsg('game-msg', 'Không tải được danh sách game: ' + error.message);
     }
   }
 
-  $('public-game-select').addEventListener('change', (e) => renderPublicGame(e.target.value));
+  $('public-game-select').addEventListener('change', async (e) => {
+    try {
+      const fresh = await getGameFresh(e.target.value);
+      if (!fresh) return renderPublicGame(null);
+      gamesCache = gamesCache.map((g) => g.id === fresh.id ? fresh : g);
+      renderPublicGame(fresh);
+    } catch (error) {
+      console.error(error);
+      setMsg('game-msg', 'Không tải được dữ liệu game: ' + error.message);
+    }
+  });
 
   // ---------- Login ----------
   $('admin-login-btn').addEventListener('click', () => {
@@ -320,6 +428,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ---------- Admin game editor ----------
   function renderAdminGameSelect() {
     const select = $('admin-game-select');
+    if (!select) return;
     select.innerHTML = '<option value="">-- Thêm trò chơi mới --</option>';
     gamesCache.forEach((game) => {
       const option = document.createElement('option');
@@ -327,75 +436,89 @@ document.addEventListener('DOMContentLoaded', async () => {
       option.textContent = game.name;
       select.appendChild(option);
     });
-    if (selectedGameId && gamesCache.some((g) => g.id === selectedGameId)) {
-      select.value = selectedGameId;
-    }
+    if (selectedGameId && gamesCache.some((g) => g.id === selectedGameId)) select.value = selectedGameId;
   }
 
   function clearGameForm() {
     selectedGameId = '';
-    $('admin-game-select').value = '';
+    if ($('admin-game-select')) $('admin-game-select').value = '';
     [
       'edit-game-name', 'edit-game-desc', 'edit-game-playstore',
       'edit-game-image1', 'edit-game-image2', 'edit-game-image3',
       'edit-game-video1', 'edit-game-video2', 'edit-game-video3'
     ].forEach((id) => { if ($(id)) $(id).value = ''; });
-    [1, 2, 3].forEach((n) => { clearPreview(`image-preview-${n}`); clearPreview(`video-preview-${n}`); });
+    [1, 2, 3].forEach((n) => {
+      clearPreview(`image-preview-${n}`);
+      clearPreview(`video-preview-${n}`);
+    });
     setMsg('game-msg', 'Đang tạo game mới.', true);
   }
 
-  function fillGameForm(game) {
+  async function fillGameForm(gameOrId) {
+    let game = gameOrId;
+    if (typeof gameOrId === 'string') game = await getGameFresh(gameOrId);
+    if (!game) {
+      clearGameForm();
+      return;
+    }
+
     selectedGameId = game.id;
     $('admin-game-select').value = game.id;
-    $('edit-game-name').value = game.name || '';
-    $('edit-game-desc').value = game.description || '';
-    $('edit-game-playstore').value = game.playStoreUrl || '';
-    $('edit-game-image1').value = game.image1 || '';
-    $('edit-game-image2').value = game.image2 || '';
-    $('edit-game-image3').value = game.image3 || '';
-    $('edit-game-video1').value = game.video1 || '';
-    $('edit-game-video2').value = game.video2 || '';
-    $('edit-game-video3').value = game.video3 || '';
+
+    const values = gameToFormValues(game);
+    $('edit-game-name').value = values.name;
+    $('edit-game-desc').value = values.description;
+    $('edit-game-playstore').value = values.playStoreUrl;
+    $('edit-game-image1').value = values.image1;
+    $('edit-game-image2').value = values.image2;
+    $('edit-game-image3').value = values.image3;
+    $('edit-game-video1').value = values.video1;
+    $('edit-game-video2').value = values.video2;
+    $('edit-game-video3').value = values.video3;
 
     [1, 2, 3].forEach((n) => {
       previewImage(`edit-game-image${n}`, `image-preview-${n}`);
       previewVideo(`edit-game-video${n}`, `video-preview-${n}`);
     });
-    $('game-msg').textContent = '';
+
+    $('game-msg').textContent = `Đã tải đầy đủ dữ liệu của "${game.name}" từ Firebase.`;
+    $('game-msg').style.color = '#10b981';
   }
 
-  $('admin-game-select').addEventListener('change', (e) => {
-    const game = gamesCache.find((g) => g.id === e.target.value);
-    if (game) fillGameForm(game);
-    else clearGameForm();
+  $('admin-game-select').addEventListener('change', async (e) => {
+    if (!e.target.value) return clearGameForm();
+    await fillGameForm(e.target.value);
   });
 
   $('new-game-btn').addEventListener('click', clearGameForm);
 
   $('reload-games-btn').addEventListener('click', async () => {
+    const keepId = selectedGameId;
     await loadGamesPublic(true);
-    if (selectedGameId) {
-      const game = gamesCache.find((g) => g.id === selectedGameId);
-      if (game) fillGameForm(game);
+    if (keepId) {
+      const fresh = await getGameFresh(keepId);
+      if (fresh) await fillGameForm(fresh);
     }
-    setMsg('game-msg', 'Đã tải lại danh sách game từ Firebase.', true);
+    setMsg('game-msg', 'Đã tải lại toàn bộ game từ Firebase.', true);
   });
 
   $('save-game-btn').addEventListener('click', async () => {
     if (!auth.currentUser) return setMsg('game-msg', 'Bạn cần đăng nhập Admin.');
-    const name = $('edit-game-name').value.trim();
+    const name = clean($('edit-game-name').value);
     if (!name) return setMsg('game-msg', 'Vui lòng nhập tên game.');
+
+    const images = [1, 2, 3].map((n) => clean($(`edit-game-image${n}`).value)).filter(Boolean);
+    const videos = [1, 2, 3].map((n) => clean($(`edit-game-video${n}`).value)).filter(Boolean);
 
     const data = {
       name,
       description: $('edit-game-desc').value,
-      playStoreUrl: $('edit-game-playstore').value.trim(),
-      image1: normalizeAsset($('edit-game-image1').value, 'images'),
-      image2: normalizeAsset($('edit-game-image2').value, 'images'),
-      image3: normalizeAsset($('edit-game-image3').value, 'images'),
-      video1: normalizeAsset($('edit-game-video1').value, 'videos'),
-      video2: normalizeAsset($('edit-game-video2').value, 'videos'),
-      video3: normalizeAsset($('edit-game-video3').value, 'videos'),
+      playStoreUrl: clean($('edit-game-playstore').value),
+      images,
+      videos,
+      // Keep individual fields too, so old/new versions of the website remain compatible.
+      image1: images[0] || '', image2: images[1] || '', image3: images[2] || '',
+      video1: videos[0] || '', video2: videos[1] || '', video3: videos[2] || '',
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -411,11 +534,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         selectedGameId = ref.id;
       }
 
-      await loadGamesPublic(true);
-      $('admin-game-select').value = selectedGameId;
-      const game = gamesCache.find((g) => g.id === selectedGameId);
-      if (game) fillGameForm(game);
-      setMsg('game-msg', 'Đã lưu game lên Firebase thành công.', true);
+      const fresh = await getGameFresh(selectedGameId);
+      if (fresh) {
+        gamesCache = gamesCache.some((g) => g.id === fresh.id)
+          ? gamesCache.map((g) => g.id === fresh.id ? fresh : g)
+          : [...gamesCache, fresh];
+        gamesCache.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+        renderAdminGameSelect();
+        renderPublicGameSelect($('public-game-select').value);
+        await fillGameForm(fresh);
+        renderPublicGame(fresh);
+      }
+      setMsg('game-msg', 'Đã lưu game và toàn bộ Link/Ảnh/Video lên Firebase.', true);
     } catch (error) {
       console.error(error);
       setMsg('game-msg', 'Lỗi khi lưu game: ' + error.message);
@@ -430,8 +560,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
       await gamesCollection.doc(selectedGameId).delete();
-      clearGameForm();
+      selectedGameId = '';
       await loadGamesPublic(false);
+      clearGameForm();
       setMsg('game-msg', 'Đã xóa game khỏi Firebase.', true);
     } catch (error) {
       console.error(error);
@@ -478,12 +609,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     adminModal.style.display = 'block';
     try {
       await Promise.all([fillCommonAdmin(), loadGamesPublic(true)]);
-      if (selectedGameId) {
-        const game = gamesCache.find((g) => g.id === selectedGameId);
-        if (game) fillGameForm(game);
-      }
+      if (selectedGameId) await fillGameForm(selectedGameId);
     } catch (error) {
       console.error(error);
+      setMsg('game-msg', 'Không thể tải dữ liệu Admin: ' + error.message);
     }
   }
 
@@ -509,12 +638,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       setMsg('pwd-msg', 'Đổi mật khẩu thành công!', true);
     } catch (error) {
       console.error(error);
-      setMsg(
-        'pwd-msg',
-        error.code === 'auth/requires-recent-login'
-          ? 'Hãy đăng xuất, đăng nhập lại rồi đổi mật khẩu.'
-          : 'Không thể đổi mật khẩu: ' + error.message
-      );
+      setMsg('pwd-msg', error.code === 'auth/requires-recent-login'
+        ? 'Hãy đăng xuất, đăng nhập lại rồi đổi mật khẩu.'
+        : 'Không thể đổi mật khẩu: ' + error.message);
     }
   });
 
