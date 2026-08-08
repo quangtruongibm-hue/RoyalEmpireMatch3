@@ -117,13 +117,15 @@
         <div class="form-group">
             <label for="admin-game-selector">Trò chơi đang chỉnh sửa:</label>
             <select id="admin-game-selector">
-                <option value="">-- Thêm trò chơi mới --</option>
+                <option value="">-- Đang tải game từ Firebase... --</option>
             </select>
         </div>
         <div class="admin-game-actions">
             <button id="new-game-btn" class="secondary-btn">Thêm Game Mới</button>
-            <button id="delete-game-btn" class="danger-btn">Xóa Game</button>
+            <button id="delete-game-btn" class="danger-btn" style="display:none;">Xóa Game</button>
+            <button id="refresh-games-btn" class="secondary-btn">Tải lại danh sách</button>
         </div>
+        <p id="admin-games-status" class="admin-help">Đang tải dữ liệu trò chơi...</p>
 
         <div class="form-group">
             <label for="game-name">Tên trò chơi:</label>
@@ -160,6 +162,7 @@
         <div class="form-group"><label for="edit-contact-support">Liên hệ hỗ trợ (HTML):</label><textarea id="edit-contact-support" rows="4"></textarea></div>
         <div class="form-group"><label for="edit-footer-info">Thông tin Footer (HTML):</label><textarea id="edit-footer-info" rows="2"></textarea></div>
         <button id="save-content-btn" class="primary-btn">Lưu Nội Dung Chung</button>
+        <button id="reload-content-btn" class="secondary-btn" type="button">Tải lại từ Firebase</button>
         <p id="save-msg" class="success-msg"></p>
     </div>
 </div>
