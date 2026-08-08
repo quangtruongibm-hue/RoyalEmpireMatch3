@@ -1,589 +1,526 @@
 document.addEventListener('DOMContentLoaded', async () => {
-    const menuItems = document.querySelectorAll('#menu-list li');
-    const sections = document.querySelectorAll('.content-section');
+  const $ = (id) => document.getElementById(id);
+  const contentKeys = ['company-desc', 'player-policy', 'programs', 'contact-support', 'footer-info'];
+  const contentDoc = db.collection('siteContent').doc('site');
+  const gamesCollection = db.collection('games');
 
-    // ==================== MENU ====================
-    menuItems.forEach(item => {
-        item.addEventListener('click', () => {
-            menuItems.forEach(i => i.classList.remove('active'));
-            item.classList.add('active');
-            sections.forEach(section => section.classList.remove('active'));
-            const target = document.getElementById(item.dataset.target);
-            if (target) target.classList.add('active');
-        });
+  let gamesCache = [];
+  let selectedGameId = '';
+
+  const loginModal = $('login-modal');
+  const adminModal = $('admin-dashboard-modal');
+
+  function setMsg(id, text, ok = false) {
+    const el = $(id);
+    if (!el) return;
+    el.textContent = text || '';
+    el.style.color = ok ? '#10b981' : '#ef4444';
+  }
+
+  function isExternalUrl(value) {
+    return /^(https?:|data:|blob:|\/)/i.test((value || '').trim());
+  }
+
+  // Allows: royal.jpg, images/royal.jpg, /images/royal.jpg, or any full URL.
+  function normalizeAsset(value, folder) {
+    let v = (value || '').trim();
+    if (!v) return '';
+
+    // GitHub "blob" URLs are converted to the raw file URL.
+    v = githubBlobToRaw(v);
+
+    if (isExternalUrl(v)) return v;
+    if (v.startsWith(`${folder}/`)) return v;
+    if (v.startsWith(`./${folder}/`)) return v.slice(2);
+    return `${folder}/${v.replace(/^\/+/, '')}`;
+  }
+
+  function githubBlobToRaw(value) {
+    try {
+      const u = new URL(value);
+      if (u.hostname === 'github.com' && u.pathname.includes('/blob/')) {
+        const parts = u.pathname.split('/').filter(Boolean);
+        const blobIndex = parts.indexOf('blob');
+        if (parts.length > blobIndex + 2) {
+          const owner = parts[0];
+          const repo = parts[1];
+          const branch = parts[blobIndex + 1];
+          const filePath = parts.slice(blobIndex + 2).join('/');
+          return `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
+        }
+      }
+    } catch (_) {}
+    return value;
+  }
+
+  function youtubeEmbed(url) {
+    try {
+      const u = new URL(url);
+      const host = u.hostname.toLowerCase();
+      if (host === 'youtu.be' || host.endsWith('.youtu.be')) {
+        const id = u.pathname.split('/').filter(Boolean)[0];
+        return id ? `https://www.youtube.com/embed/${id}` : '';
+      }
+      if (host.includes('youtube.com')) {
+        const id = u.searchParams.get('v');
+        if (id) return `https://www.youtube.com/embed/${id}`;
+        if (u.pathname.startsWith('/embed/')) return url;
+        if (u.pathname.startsWith('/shorts/')) {
+          const id2 = u.pathname.split('/')[2];
+          return id2 ? `https://www.youtube.com/embed/${id2}` : '';
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  function clearPreview(containerId) {
+    const box = $(containerId);
+    if (box) box.innerHTML = '';
+  }
+
+  function previewImage(inputId, previewId) {
+    const input = $(inputId);
+    const preview = $(previewId);
+    if (!input || !preview) return;
+    const url = normalizeAsset(input.value, 'images');
+    preview.innerHTML = '';
+    if (!url) return;
+
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = 'Xem trước ảnh';
+    img.loading = 'lazy';
+    img.onerror = () => {
+      preview.innerHTML = '<span class="preview-error">Không tải được ảnh. Kiểm tra URL hoặc tên file.</span>';
+    };
+    preview.appendChild(img);
+  }
+
+  function previewVideo(inputId, previewId) {
+    const input = $(inputId);
+    const preview = $(previewId);
+    if (!input || !preview) return;
+    const url = normalizeAsset(input.value, 'videos');
+    preview.innerHTML = '';
+    if (!url) return;
+
+    const embed = youtubeEmbed(url);
+    if (embed) {
+      const iframe = document.createElement('iframe');
+      iframe.src = embed;
+      iframe.title = 'Xem trước video';
+      iframe.allowFullscreen = true;
+      iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+      preview.appendChild(iframe);
+      return;
+    }
+
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.preload = 'metadata';
+    video.onerror = () => {
+      preview.innerHTML = '<span class="preview-error">Không phát được video. Hãy kiểm tra URL hoặc định dạng MP4/WebM.</span>';
+    };
+    preview.appendChild(video);
+  }
+
+  function bindAssetPreviews() {
+    [1, 2, 3].forEach((n) => {
+      const imageInput = $(`edit-game-image${n}`);
+      const videoInput = $(`edit-game-video${n}`);
+      if (imageInput) {
+        imageInput.addEventListener('input', () => previewImage(`edit-game-image${n}`, `image-preview-${n}`));
+      }
+      if (videoInput) {
+        videoInput.addEventListener('input', () => previewVideo(`edit-game-video${n}`, `video-preview-${n}`));
+      }
+    });
+  }
+
+  // ---------- Tabs ----------
+  const menuItems = document.querySelectorAll('#menu-list li');
+  const sections = document.querySelectorAll('.content-section');
+  menuItems.forEach((item) => {
+    item.addEventListener('click', () => {
+      menuItems.forEach((i) => i.classList.remove('active'));
+      item.classList.add('active');
+      sections.forEach((s) => s.classList.remove('active'));
+      const target = $(item.getAttribute('data-target'));
+      if (target) target.classList.add('active');
+    });
+  });
+
+  // ---------- Common website content ----------
+  async function loadSiteContent() {
+    try {
+      const snapshot = await contentDoc.get();
+      if (!snapshot.exists) return;
+      const data = snapshot.data() || {};
+      contentKeys.forEach((key) => {
+        const el = $(`content-${key}`);
+        if (el && data[key] != null) el.innerHTML = data[key];
+      });
+    } catch (error) {
+      console.error('Lỗi tải nội dung website:', error);
+    }
+  }
+
+  async function fillCommonAdmin() {
+    const snapshot = await contentDoc.get();
+    if (!snapshot.exists) return;
+    const data = snapshot.data() || {};
+    contentKeys.forEach((key) => {
+      const el = $(`edit-${key}`);
+      if (el) el.value = data[key] || '';
+    });
+  }
+
+  // ---------- Public games ----------
+  function renderPublicGameSelect() {
+    const select = $('public-game-select');
+    select.innerHTML = '';
+    if (!gamesCache.length) {
+      select.innerHTML = '<option value="">-- Chưa có game --</option>';
+      return;
+    }
+    gamesCache.forEach((game) => {
+      const option = document.createElement('option');
+      option.value = game.id;
+      option.textContent = game.name;
+      select.appendChild(option);
+    });
+  }
+
+  function renderPublicGame(gameId) {
+    const game = gamesCache.find((g) => g.id === gameId);
+    const empty = $('game-public-empty');
+    const content = $('game-public-content');
+    if (!game) {
+      empty.hidden = false;
+      content.hidden = true;
+      return;
+    }
+
+    empty.hidden = true;
+    content.hidden = false;
+    $('public-game-name').textContent = game.name || '';
+    $('public-game-desc').innerHTML = game.description || '<p>Chưa có giới thiệu.</p>';
+
+    const play = $('public-game-playstore');
+    if (game.playStoreUrl) {
+      play.href = game.playStoreUrl;
+      play.style.display = 'inline-block';
+    } else {
+      play.removeAttribute('href');
+      play.style.display = 'none';
+    }
+
+    const gallery = $('public-game-gallery');
+    gallery.innerHTML = '';
+    [game.image1, game.image2, game.image3].forEach((src, index) => {
+      const url = normalizeAsset(src, 'images');
+      if (!url) return;
+      const img = document.createElement('img');
+      img.src = url;
+      img.alt = `${game.name} - Ảnh ${index + 1}`;
+      img.loading = 'lazy';
+      img.onerror = () => img.remove();
+      gallery.appendChild(img);
     });
 
-    if (typeof firebase === 'undefined' || typeof auth === 'undefined' || typeof db === 'undefined') {
-        console.error('Firebase chưa được khởi tạo.');
+    const videos = $('public-game-videos');
+    videos.innerHTML = '';
+    [game.video1, game.video2, game.video3].forEach((src, index) => {
+      const url = normalizeAsset(src, 'videos');
+      if (!url) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'video-wrapper';
+      const embed = youtubeEmbed(url);
+      if (embed) {
+        const iframe = document.createElement('iframe');
+        iframe.src = embed;
+        iframe.title = `${game.name} - Video ${index + 1}`;
+        iframe.loading = 'lazy';
+        iframe.allowFullscreen = true;
+        iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+        wrap.appendChild(iframe);
+      } else {
+        const video = document.createElement('video');
+        video.src = url;
+        video.controls = true;
+        video.preload = 'metadata';
+        wrap.appendChild(video);
+      }
+      videos.appendChild(wrap);
+    });
+  }
+
+  async function loadGamesPublic(keepSelected = true) {
+    try {
+      const snapshot = await gamesCollection.get();
+      gamesCache = snapshot.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((g) => g.name)
+        .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'vi'));
+
+      renderPublicGameSelect();
+      renderAdminGameSelect();
+
+      if (!gamesCache.length) {
+        $('game-public-empty').hidden = false;
+        $('game-public-content').hidden = true;
         return;
+      }
+
+      let current = keepSelected ? $('public-game-select').value : '';
+      if (!gamesCache.some((g) => g.id === current)) current = gamesCache[0].id;
+      $('public-game-select').value = current;
+      renderPublicGame(current);
+    } catch (error) {
+      console.error('Lỗi tải games:', error);
+      $('public-game-select').innerHTML = '<option value="">Không tải được danh sách game</option>';
+      setMsg('game-msg', 'Không tải được danh sách game: ' + error.message);
     }
+  }
 
-    const contentKeys = [
-        'company-desc',
-        'player-policy',
-        'programs',
-        'contact-support',
-        'footer-info'
-    ];
+  $('public-game-select').addEventListener('change', (e) => renderPublicGame(e.target.value));
 
-    const contentDoc = db.collection('siteContent').doc('site');
-    const gamesCollection = db.collection('games');
+  // ---------- Login ----------
+  $('admin-login-btn').addEventListener('click', () => {
+    if (auth.currentUser) openAdminDashboard();
+    else loginModal.style.display = 'block';
+  });
 
-    let games = [];
-    let selectedAdminGameId = '';
+  $('close-login-modal').addEventListener('click', () => loginModal.style.display = 'none');
+  $('close-admin-modal').addEventListener('click', () => adminModal.style.display = 'none');
+  window.addEventListener('click', (e) => {
+    if (e.target === loginModal) loginModal.style.display = 'none';
+    if (e.target === adminModal) adminModal.style.display = 'none';
+  });
 
-    // ==================== NỘI DUNG CHUNG ====================
-    async function loadSiteContent() {
-        try {
-            const snapshot = await contentDoc.get();
+  $('login-submit-btn').addEventListener('click', async () => {
+    const email = $('username').value.trim();
+    const password = $('password').value;
+    if (!email || !password) return setMsg('login-error', 'Vui lòng nhập email và mật khẩu.');
 
-            if (snapshot.exists) {
-                const data = snapshot.data();
-
-                contentKeys.forEach(key => {
-                    const el = document.getElementById(`content-${key}`);
-                    if (el && data[key] != null) {
-                        el.innerHTML = data[key];
-                    }
-                });
-            } else {
-                // Không tự ghi từ phía website công khai.
-                // Site content nên được tạo/chỉnh sửa từ Admin.
-                console.warn('Firebase chưa có siteContent/site.');
-            }
-        } catch (error) {
-            console.error('Lỗi tải siteContent:', error);
-        }
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      $('password').value = '';
+      $('login-error').textContent = '';
+      loginModal.style.display = 'none';
+      await openAdminDashboard();
+    } catch (error) {
+      console.error(error);
+      setMsg('login-error', 'Email hoặc mật khẩu không đúng.');
     }
+  });
 
-    // ==================== GAMES PUBLIC ====================
-    async function loadGames() {
-        try {
-            const snapshot = await gamesCollection.get();
-
-            games = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            games.sort((a, b) =>
-                (a.name || '').localeCompare((b.name || ''), 'vi')
-            );
-
-            renderGameSelector();
-            updateAdminGameList();
-        } catch (error) {
-            console.error('Lỗi tải games:', error);
-
-            const empty = document.getElementById('game-empty');
-            if (empty) {
-                empty.textContent = 'Không thể tải danh sách trò chơi từ Firebase.';
-            }
-
-            updateAdminStatus('Lỗi tải danh sách game: ' + error.message, true);
-        }
+  // ---------- Admin game editor ----------
+  function renderAdminGameSelect() {
+    const select = $('admin-game-select');
+    select.innerHTML = '<option value="">-- Thêm trò chơi mới --</option>';
+    gamesCache.forEach((game) => {
+      const option = document.createElement('option');
+      option.value = game.id;
+      option.textContent = game.name;
+      select.appendChild(option);
+    });
+    if (selectedGameId && gamesCache.some((g) => g.id === selectedGameId)) {
+      select.value = selectedGameId;
     }
+  }
 
-    function renderGameSelector() {
-        const select = document.getElementById('game-selector');
-        const empty = document.getElementById('game-empty');
-        const detail = document.getElementById('game-detail');
+  function clearGameForm() {
+    selectedGameId = '';
+    $('admin-game-select').value = '';
+    [
+      'edit-game-name', 'edit-game-desc', 'edit-game-playstore',
+      'edit-game-image1', 'edit-game-image2', 'edit-game-image3',
+      'edit-game-video1', 'edit-game-video2', 'edit-game-video3'
+    ].forEach((id) => { if ($(id)) $(id).value = ''; });
+    [1, 2, 3].forEach((n) => { clearPreview(`image-preview-${n}`); clearPreview(`video-preview-${n}`); });
+    setMsg('game-msg', 'Đang tạo game mới.', true);
+  }
 
-        select.innerHTML = '';
+  function fillGameForm(game) {
+    selectedGameId = game.id;
+    $('admin-game-select').value = game.id;
+    $('edit-game-name').value = game.name || '';
+    $('edit-game-desc').value = game.description || '';
+    $('edit-game-playstore').value = game.playStoreUrl || '';
+    $('edit-game-image1').value = game.image1 || '';
+    $('edit-game-image2').value = game.image2 || '';
+    $('edit-game-image3').value = game.image3 || '';
+    $('edit-game-video1').value = game.video1 || '';
+    $('edit-game-video2').value = game.video2 || '';
+    $('edit-game-video3').value = game.video3 || '';
 
-        if (!games.length) {
-            select.innerHTML = '<option value="">Chưa có game</option>';
-            empty.style.display = 'block';
-            detail.style.display = 'none';
-            return;
-        }
+    [1, 2, 3].forEach((n) => {
+      previewImage(`edit-game-image${n}`, `image-preview-${n}`);
+      previewVideo(`edit-game-video${n}`, `video-preview-${n}`);
+    });
+    $('game-msg').textContent = '';
+  }
 
-        empty.style.display = 'none';
+  $('admin-game-select').addEventListener('change', (e) => {
+    const game = gamesCache.find((g) => g.id === e.target.value);
+    if (game) fillGameForm(game);
+    else clearGameForm();
+  });
 
-        games.forEach((game, index) => {
-            const option = document.createElement('option');
-            option.value = game.id;
-            option.textContent = game.name || `Game ${index + 1}`;
-            select.appendChild(option);
-        });
+  $('new-game-btn').addEventListener('click', clearGameForm);
 
-        select.value = games[0].id;
-        renderGameDetail(games[0]);
+  $('reload-games-btn').addEventListener('click', async () => {
+    await loadGamesPublic(true);
+    if (selectedGameId) {
+      const game = gamesCache.find((g) => g.id === selectedGameId);
+      if (game) fillGameForm(game);
     }
+    setMsg('game-msg', 'Đã tải lại danh sách game từ Firebase.', true);
+  });
 
-    document.getElementById('game-selector').addEventListener('change', e => {
-        const game = games.find(g => g.id === e.target.value);
-        if (game) renderGameDetail(game);
-    });
+  $('save-game-btn').addEventListener('click', async () => {
+    if (!auth.currentUser) return setMsg('game-msg', 'Bạn cần đăng nhập Admin.');
+    const name = $('edit-game-name').value.trim();
+    if (!name) return setMsg('game-msg', 'Vui lòng nhập tên game.');
 
-    function renderGameDetail(game) {
-        document.getElementById('game-detail').style.display = 'block';
+    const data = {
+      name,
+      description: $('edit-game-desc').value,
+      playStoreUrl: $('edit-game-playstore').value.trim(),
+      image1: normalizeAsset($('edit-game-image1').value, 'images'),
+      image2: normalizeAsset($('edit-game-image2').value, 'images'),
+      image3: normalizeAsset($('edit-game-image3').value, 'images'),
+      video1: normalizeAsset($('edit-game-video1').value, 'videos'),
+      video2: normalizeAsset($('edit-game-video2').value, 'videos'),
+      video3: normalizeAsset($('edit-game-video3').value, 'videos'),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
 
-        document.getElementById('game-title').textContent =
-            game.name || 'Trò chơi';
+    try {
+      let ref;
+      if (selectedGameId) {
+        ref = gamesCollection.doc(selectedGameId);
+        await ref.set(data, { merge: true });
+      } else {
+        ref = gamesCollection.doc();
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        await ref.set(data);
+        selectedGameId = ref.id;
+      }
 
-        document.getElementById('game-description').innerHTML =
-            game.description || '<p>Chưa có giới thiệu.</p>';
-
-        const download = document.getElementById('game-download');
-
-        if (game.playUrl) {
-            download.href = game.playUrl;
-            download.style.display = 'inline-block';
-        } else {
-            download.removeAttribute('href');
-            download.style.display = 'none';
-        }
-
-        const gallery = document.getElementById('game-gallery');
-        gallery.innerHTML = '';
-
-        (game.images || []).slice(0, 3).forEach((url, i) => {
-            if (!url) return;
-
-            const img = document.createElement('img');
-            img.src = url;
-            img.alt = `${game.name || 'Game'} - Screenshot ${i + 1}`;
-            img.loading = 'lazy';
-
-            gallery.appendChild(img);
-        });
-
-        const videos = document.getElementById('game-videos');
-        videos.innerHTML = '';
-
-        (game.videos || []).slice(0, 3).forEach(url => {
-            if (!url) return;
-
-            const wrapper = document.createElement('div');
-            wrapper.className = 'video-wrapper';
-
-            const iframe = document.createElement('iframe');
-            iframe.src = url;
-            iframe.title = `${game.name || 'Game'} video`;
-            iframe.loading = 'lazy';
-            iframe.allow =
-                'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
-            iframe.allowFullscreen = true;
-
-            wrapper.appendChild(iframe);
-            videos.appendChild(wrapper);
-        });
+      await loadGamesPublic(true);
+      $('admin-game-select').value = selectedGameId;
+      const game = gamesCache.find((g) => g.id === selectedGameId);
+      if (game) fillGameForm(game);
+      setMsg('game-msg', 'Đã lưu game lên Firebase thành công.', true);
+    } catch (error) {
+      console.error(error);
+      setMsg('game-msg', 'Lỗi khi lưu game: ' + error.message);
     }
+  });
 
-    // ==================== LOGIN ====================
-    const loginModal = document.getElementById('login-modal');
-    const adminModal = document.getElementById('admin-dashboard-modal');
+  $('delete-game-btn').addEventListener('click', async () => {
+    if (!auth.currentUser) return setMsg('game-msg', 'Bạn cần đăng nhập Admin.');
+    if (!selectedGameId) return setMsg('game-msg', 'Hãy chọn game cần xóa.');
+    const game = gamesCache.find((g) => g.id === selectedGameId);
+    if (!confirm(`Bạn chắc chắn muốn xóa game "${game?.name || ''}" khỏi Firebase?`)) return;
 
-    document.getElementById('admin-login-btn').addEventListener('click', () => {
-        if (auth.currentUser) {
-            openAdminDashboard();
-        } else {
-            loginModal.style.display = 'block';
-        }
-    });
-
-    document.getElementById('close-login-modal').addEventListener('click', () => {
-        loginModal.style.display = 'none';
-    });
-
-    document.getElementById('close-admin-modal').addEventListener('click', () => {
-        adminModal.style.display = 'none';
-    });
-
-    window.addEventListener('click', e => {
-        if (e.target === loginModal) loginModal.style.display = 'none';
-        if (e.target === adminModal) adminModal.style.display = 'none';
-    });
-
-    document.getElementById('login-submit-btn').addEventListener('click', async () => {
-        const email = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value;
-        const errorEl = document.getElementById('login-error');
-
-        if (!email || !password) {
-            errorEl.textContent = 'Vui lòng nhập email và mật khẩu.';
-            return;
-        }
-
-        try {
-            await auth.signInWithEmailAndPassword(email, password);
-
-            errorEl.textContent = '';
-            document.getElementById('password').value = '';
-            loginModal.style.display = 'none';
-
-            await openAdminDashboard();
-        } catch (error) {
-            console.error(error);
-            errorEl.textContent = 'Email hoặc mật khẩu không đúng.';
-        }
-    });
-
-    async function openAdminDashboard() {
-        if (!auth.currentUser) {
-            loginModal.style.display = 'block';
-            return;
-        }
-
-        adminModal.style.display = 'block';
-
-        // Mỗi lần mở Admin đều đọc lại Firebase.
-        // Như vậy game/nội dung vừa sửa ở máy khác cũng được lấy về.
-        await loadAdminContent();
-        await loadAdminGamesFromFirebase();
-        clearGameForm();
+    try {
+      await gamesCollection.doc(selectedGameId).delete();
+      clearGameForm();
+      await loadGamesPublic(false);
+      setMsg('game-msg', 'Đã xóa game khỏi Firebase.', true);
+    } catch (error) {
+      console.error(error);
+      setMsg('game-msg', 'Lỗi khi xóa game: ' + error.message);
     }
+  });
 
-    document.getElementById('logout-btn').addEventListener('click', async () => {
-        await auth.signOut();
-        adminModal.style.display = 'none';
-        alert('Đã đăng xuất thành công!');
-    });
-
-    // ==================== ĐỔI MẬT KHẨU ====================
-    document.getElementById('change-pwd-btn').addEventListener('click', async () => {
-        const input = document.getElementById('new-password');
-        const msg = document.getElementById('pwd-msg');
-        const newPwd = input.value;
-
-        if (!newPwd || newPwd.trim().length < 6) {
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Mật khẩu phải có ít nhất 6 ký tự!';
-            return;
-        }
-
-        if (!auth.currentUser) {
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Bạn chưa đăng nhập Admin.';
-            return;
-        }
-
-        try {
-            await auth.currentUser.updatePassword(newPwd);
-
-            input.value = '';
-            msg.style.color = '#10b981';
-            msg.textContent = 'Đổi mật khẩu thành công!';
-
-            setTimeout(() => msg.textContent = '', 3000);
-        } catch (error) {
-            msg.style.color = '#ef4444';
-
-            msg.textContent =
-                error.code === 'auth/requires-recent-login'
-                    ? 'Hãy đăng xuất, đăng nhập lại rồi đổi mật khẩu.'
-                    : 'Không thể đổi mật khẩu.';
-        }
-    });
-
-    // ==================== ADMIN GAME ====================
-    async function loadAdminGamesFromFirebase() {
-        const select = document.getElementById('admin-game-selector');
-
-        try {
-            updateAdminStatus('Đang tải danh sách game từ Firebase...');
-
-            // Đọc trực tiếp Firebase, không phụ thuộc games đang có trong bộ nhớ.
-            const snapshot = await gamesCollection.get();
-
-            games = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-
-            games.sort((a, b) =>
-                (a.name || '').localeCompare((b.name || ''), 'vi')
-            );
-
-            select.innerHTML = '';
-
-            const newOption = document.createElement('option');
-            newOption.value = '';
-            newOption.textContent = '-- Thêm trò chơi mới --';
-            select.appendChild(newOption);
-
-            games.forEach(game => {
-                const option = document.createElement('option');
-                option.value = game.id;
-                option.textContent = game.name || `Game (${game.id})`;
-                select.appendChild(option);
-            });
-
-            updateAdminStatus(
-                games.length
-                    ? `Đã tải ${games.length} trò chơi từ Firebase. Chọn một game để chỉnh sửa.`
-                    : 'Firebase chưa có game nào. Hãy bấm "Thêm Game Mới".'
-            );
-        } catch (error) {
-            console.error('Lỗi loadAdminGamesFromFirebase:', error);
-            select.innerHTML = '<option value="">Không tải được game</option>';
-            updateAdminStatus('Lỗi tải game: ' + error.message, true);
-        }
+  // ---------- Common content ----------
+  $('reload-content-btn').addEventListener('click', async () => {
+    try {
+      await fillCommonAdmin();
+      await loadSiteContent();
+      setMsg('save-msg', 'Đã tải lại nội dung chung từ Firebase.', true);
+    } catch (error) {
+      console.error(error);
+      setMsg('save-msg', 'Không thể tải nội dung: ' + error.message);
     }
+  });
 
-    function updateAdminStatus(message, isError = false) {
-        const el = document.getElementById('admin-games-status');
-        if (!el) return;
+  $('save-content-btn').addEventListener('click', async () => {
+    if (!auth.currentUser) return setMsg('save-msg', 'Bạn cần đăng nhập Admin.');
+    const data = {};
+    contentKeys.forEach((key) => {
+      const el = $(`edit-${key}`);
+      if (el) data[key] = el.value;
+    });
 
-        el.textContent = message;
-        el.style.color = isError ? '#ef4444' : '';
+    try {
+      await contentDoc.set(data, { merge: true });
+      await loadSiteContent();
+      setMsg('save-msg', 'Đã lưu nội dung chung lên Firebase.', true);
+    } catch (error) {
+      console.error(error);
+      setMsg('save-msg', 'Lỗi khi lưu Firebase: ' + error.message);
     }
+  });
 
-    function clearGameForm() {
-        selectedAdminGameId = '';
-
-        document.getElementById('admin-game-selector').value = '';
-        document.getElementById('game-name').value = '';
-        document.getElementById('game-desc').value = '';
-        document.getElementById('game-play-url').value = '';
-
-        for (let i = 1; i <= 3; i++) {
-            document.getElementById(`game-image-${i}`).value = '';
-            document.getElementById(`game-video-${i}`).value = '';
-        }
-
-        document.getElementById('delete-game-btn').style.display = 'none';
-        document.getElementById('game-msg').textContent = '';
+  // ---------- Admin dashboard ----------
+  async function openAdminDashboard() {
+    if (!auth.currentUser) {
+      loginModal.style.display = 'block';
+      return;
     }
-
-    function fillGameForm(game) {
-        selectedAdminGameId = game.id;
-
-        document.getElementById('game-name').value = game.name || '';
-        document.getElementById('game-desc').value = game.description || '';
-        document.getElementById('game-play-url').value = game.playUrl || '';
-
-        for (let i = 1; i <= 3; i++) {
-            document.getElementById(`game-image-${i}`).value =
-                (game.images || [])[i - 1] || '';
-
-            document.getElementById(`game-video-${i}`).value =
-                (game.videos || [])[i - 1] || '';
-        }
-
-        document.getElementById('delete-game-btn').style.display = 'inline-block';
-
-        document.getElementById('game-msg').style.color = '#10b981';
-        document.getElementById('game-msg').textContent =
-            `Đã tải dữ liệu "${game.name || game.id}" từ Firebase.`;
-
-        setTimeout(() => {
-            document.getElementById('game-msg').textContent = '';
-        }, 3000);
+    adminModal.style.display = 'block';
+    try {
+      await Promise.all([fillCommonAdmin(), loadGamesPublic(true)]);
+      if (selectedGameId) {
+        const game = gamesCache.find((g) => g.id === selectedGameId);
+        if (game) fillGameForm(game);
+      }
+    } catch (error) {
+      console.error(error);
     }
+  }
 
-    document.getElementById('admin-game-selector').addEventListener('change', e => {
-        const game = games.find(g => g.id === e.target.value);
-
-        if (game) {
-            fillGameForm(game);
-        } else {
-            clearGameForm();
-        }
-    });
-
-    document.getElementById('new-game-btn').addEventListener('click', () => {
-        clearGameForm();
-        document.getElementById('game-name').focus();
-    });
-
-    document.getElementById('refresh-games-btn').addEventListener('click', async () => {
-        await loadAdminGamesFromFirebase();
-    });
-
-    // ==================== LƯU GAME ====================
-    document.getElementById('save-game-btn').addEventListener('click', async () => {
-        const msg = document.getElementById('game-msg');
-
-        if (!auth.currentUser) {
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Bạn cần đăng nhập Admin.';
-            return;
-        }
-
-        const name = document.getElementById('game-name').value.trim();
-
-        if (!name) {
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Vui lòng nhập tên trò chơi.';
-            return;
-        }
-
-        const gameData = {
-            name,
-            description: document.getElementById('game-desc').value,
-            playUrl: document.getElementById('game-play-url').value.trim(),
-            images: [1, 2, 3].map(i =>
-                document.getElementById(`game-image-${i}`).value.trim()
-            ),
-            videos: [1, 2, 3].map(i =>
-                document.getElementById(`game-video-${i}`).value.trim()
-            ),
-            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-        };
-
-        try {
-            if (selectedAdminGameId) {
-                await gamesCollection
-                    .doc(selectedAdminGameId)
-                    .set(gameData, { merge: true });
-
-                msg.textContent = 'Đã cập nhật trò chơi lên Firebase.';
-            } else {
-                gameData.createdAt =
-                    firebase.firestore.FieldValue.serverTimestamp();
-
-                const ref = await gamesCollection.add(gameData);
-                selectedAdminGameId = ref.id;
-
-                msg.textContent = 'Đã thêm trò chơi mới lên Firebase.';
-            }
-
-            msg.style.color = '#10b981';
-
-            // Đọc lại toàn bộ game sau khi lưu.
-            await loadGames();
-            await loadAdminGamesFromFirebase();
-
-            document.getElementById('admin-game-selector').value =
-                selectedAdminGameId;
-
-            const updatedGame =
-                games.find(g => g.id === selectedAdminGameId);
-
-            if (updatedGame) fillGameForm(updatedGame);
-
-            setTimeout(() => msg.textContent = '', 4000);
-        } catch (error) {
-            console.error('Save game error:', error);
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Lỗi lưu game: ' + error.message;
-        }
-    });
-
-    // ==================== XÓA GAME ====================
-    document.getElementById('delete-game-btn').addEventListener('click', async () => {
-        if (!selectedAdminGameId || !auth.currentUser) return;
-
-        const game =
-            games.find(g => g.id === selectedAdminGameId);
-
-        if (!confirm(
-            `Bạn có chắc muốn xóa game "${game?.name || ''}" không?`
-        )) {
-            return;
-        }
-
-        const msg = document.getElementById('game-msg');
-
-        try {
-            await gamesCollection
-                .doc(selectedAdminGameId)
-                .delete();
-
-            msg.style.color = '#10b981';
-            msg.textContent = 'Đã xóa trò chơi khỏi Firebase.';
-
-            await loadGames();
-            await loadAdminGamesFromFirebase();
-            clearGameForm();
-        } catch (error) {
-            console.error('Delete game error:', error);
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Lỗi xóa game: ' + error.message;
-        }
-    });
-
-    // ==================== NỘI DUNG CHUNG ADMIN ====================
-    async function loadAdminContent() {
-        const msg = document.getElementById('save-msg');
-
-        try {
-            const snapshot = await contentDoc.get();
-
-            if (!snapshot.exists) {
-                msg.style.color = '#f59e0b';
-                msg.textContent = 'Firebase chưa có siteContent/site.';
-                return;
-            }
-
-            const data = snapshot.data();
-
-            contentKeys.forEach(key => {
-                const textarea = document.getElementById(`edit-${key}`);
-
-                if (textarea) {
-                    textarea.value = data[key] || '';
-                }
-            });
-
-            msg.style.color = '#10b981';
-            msg.textContent = 'Đã tải nội dung website từ Firebase.';
-
-            setTimeout(() => msg.textContent = '', 3000);
-        } catch (error) {
-            console.error('Lỗi loadAdminContent:', error);
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Không thể tải nội dung website: ' + error.message;
-        }
+  $('logout-btn').addEventListener('click', async () => {
+    try {
+      await auth.signOut();
+      adminModal.style.display = 'none';
+      alert('Đã đăng xuất thành công!');
+    } catch (error) {
+      console.error(error);
     }
+  });
 
-    document.getElementById('reload-content-btn').addEventListener('click', async () => {
-        await loadAdminContent();
-    });
+  $('change-pwd-btn').addEventListener('click', async () => {
+    const newPwd = $('new-password').value;
+    const user = auth.currentUser;
+    if (!user) return setMsg('pwd-msg', 'Bạn chưa đăng nhập Admin.');
+    if (!newPwd || newPwd.length < 6) return setMsg('pwd-msg', 'Mật khẩu phải có ít nhất 6 ký tự!');
 
-    // ==================== LƯU NỘI DUNG CHUNG ====================
-    document.getElementById('save-content-btn').addEventListener('click', async () => {
-        const msg = document.getElementById('save-msg');
+    try {
+      await user.updatePassword(newPwd);
+      $('new-password').value = '';
+      setMsg('pwd-msg', 'Đổi mật khẩu thành công!', true);
+    } catch (error) {
+      console.error(error);
+      setMsg(
+        'pwd-msg',
+        error.code === 'auth/requires-recent-login'
+          ? 'Hãy đăng xuất, đăng nhập lại rồi đổi mật khẩu.'
+          : 'Không thể đổi mật khẩu: ' + error.message
+      );
+    }
+  });
 
-        if (!auth.currentUser) {
-            msg.style.color = '#ef4444';
-            msg.textContent = 'Bạn cần đăng nhập Admin trước!';
-            return;
-        }
+  bindAssetPreviews();
+  auth.onAuthStateChanged((user) => console.log(user ? `Admin: ${user.email}` : 'Chưa đăng nhập Admin'));
 
-        try {
-            const data = {};
-
-            contentKeys.forEach(key => {
-                const textarea =
-                    document.getElementById(`edit-${key}`);
-
-                if (textarea) {
-                    data[key] = textarea.value;
-                }
-            });
-
-            await contentDoc.set(data, { merge: true });
-
-            // Cập nhật ngay giao diện hiện tại.
-            contentKeys.forEach(key => {
-                const textarea =
-                    document.getElementById(`edit-${key}`);
-
-                const dom =
-                    document.getElementById(`content-${key}`);
-
-                if (textarea && dom) {
-                    dom.innerHTML = textarea.value;
-                }
-            });
-
-            msg.style.color = '#10b981';
-            msg.textContent =
-                'Đã lưu nội dung chung lên Firebase!';
-
-            setTimeout(() => msg.textContent = '', 4000);
-        } catch (error) {
-            console.error('Lỗi saveContent:', error);
-            msg.style.color = '#ef4444';
-            msg.textContent =
-                'Lỗi lưu Firebase: ' + error.message;
-        }
-    });
-
-    // ==================== KHỞI ĐỘNG ====================
-    await loadSiteContent();
-    await loadGames();
+  await loadSiteContent();
+  await loadGamesPublic(false);
 });
