@@ -143,6 +143,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   }
 
+  // ---------- Admin sidebar navigation ----------
+  document.querySelectorAll('.admin-nav-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      document.querySelectorAll('.admin-nav-item').forEach((i) => i.classList.remove('active'));
+      document.querySelectorAll('.admin-panel').forEach((panel) => panel.classList.remove('active'));
+      item.classList.add('active');
+      const target = $(item.getAttribute('data-admin-target'));
+      if (target) target.classList.add('active');
+    });
+  });
+
   // ---------- Tabs ----------
   document.querySelectorAll('#menu-list li').forEach((item) => {
     item.addEventListener('click', () => {
@@ -164,6 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const el = $(`content-${key}`);
         if (el && data[key] != null) el.innerHTML = data[key];
       });
+      applyAppearance(data.appearance);
     } catch (error) {
       console.error('Lỗi tải nội dung website:', error);
     }
@@ -177,6 +189,98 @@ document.addEventListener('DOMContentLoaded', async () => {
       const el = $(`edit-${key}`);
       if (el) el.value = data[key] || '';
     });
+  }
+
+  // ---------- Website appearance ----------
+  const defaultAppearance = {
+    bannerUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80',
+    bannerBrightness: 70,
+    overlayOpacity: 35,
+    bgColor: '#0f172a',
+    cardColor: '#1e293b',
+    accentColor: '#3b82f6',
+    textColor: '#f8fafc',
+    secondaryTextColor: '#94a3b8',
+    borderColor: '#334155'
+  };
+
+  function clampNumber(value, min, max, fallback) {
+    const n = Number(value);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  }
+
+  function normalizeAppearance(data) {
+    const a = data && typeof data === 'object' ? data : {};
+    return {
+      bannerUrl: clean(a.bannerUrl) || defaultAppearance.bannerUrl,
+      bannerBrightness: clampNumber(a.bannerBrightness, 20, 140, defaultAppearance.bannerBrightness),
+      overlayOpacity: clampNumber(a.overlayOpacity, 0, 80, defaultAppearance.overlayOpacity),
+      bgColor: /^#[0-9a-f]{6}$/i.test(a.bgColor || '') ? a.bgColor : defaultAppearance.bgColor,
+      cardColor: /^#[0-9a-f]{6}$/i.test(a.cardColor || '') ? a.cardColor : defaultAppearance.cardColor,
+      accentColor: /^#[0-9a-f]{6}$/i.test(a.accentColor || '') ? a.accentColor : defaultAppearance.accentColor,
+      textColor: /^#[0-9a-f]{6}$/i.test(a.textColor || '') ? a.textColor : defaultAppearance.textColor,
+      secondaryTextColor: /^#[0-9a-f]{6}$/i.test(a.secondaryTextColor || '') ? a.secondaryTextColor : defaultAppearance.secondaryTextColor,
+      borderColor: /^#[0-9a-f]{6}$/i.test(a.borderColor || '') ? a.borderColor : defaultAppearance.borderColor
+    };
+  }
+
+  function applyAppearance(rawAppearance) {
+    const a = normalizeAppearance(rawAppearance);
+    const root = document.documentElement;
+    root.style.setProperty('--bg-main', a.bgColor);
+    root.style.setProperty('--bg-card', a.cardColor);
+    root.style.setProperty('--accent-color', a.accentColor);
+    root.style.setProperty('--accent-hover', a.accentColor);
+    root.style.setProperty('--text-primary', a.textColor);
+    root.style.setProperty('--text-secondary', a.secondaryTextColor);
+    root.style.setProperty('--border-color', a.borderColor);
+    root.style.setProperty('--hero-brightness', String(a.bannerBrightness / 100));
+    root.style.setProperty('--hero-overlay-opacity', String(a.overlayOpacity / 100));
+    root.style.setProperty('--hero-image', `url("${normalizeAsset(a.bannerUrl, 'images')}")`);
+  }
+
+  function fillAppearanceForm(rawAppearance) {
+    const a = normalizeAppearance(rawAppearance);
+    if ($('edit-banner-url')) $('edit-banner-url').value = a.bannerUrl;
+    if ($('edit-banner-brightness')) $('edit-banner-brightness').value = a.bannerBrightness;
+    if ($('edit-overlay-opacity')) $('edit-overlay-opacity').value = a.overlayOpacity;
+    if ($('edit-bg-color')) $('edit-bg-color').value = a.bgColor;
+    if ($('edit-card-color')) $('edit-card-color').value = a.cardColor;
+    if ($('edit-accent-color')) $('edit-accent-color').value = a.accentColor;
+    if ($('edit-text-color')) $('edit-text-color').value = a.textColor;
+    if ($('edit-secondary-text-color')) $('edit-secondary-text-color').value = a.secondaryTextColor;
+    if ($('edit-border-color')) $('edit-border-color').value = a.borderColor;
+    if ($('banner-brightness-value')) $('banner-brightness-value').textContent = a.bannerBrightness;
+    if ($('overlay-opacity-value')) $('overlay-opacity-value').textContent = a.overlayOpacity;
+    applyAppearance(a);
+  }
+
+  function getAppearanceFromForm() {
+    return normalizeAppearance({
+      bannerUrl: $('edit-banner-url')?.value,
+      bannerBrightness: $('edit-banner-brightness')?.value,
+      overlayOpacity: $('edit-overlay-opacity')?.value,
+      bgColor: $('edit-bg-color')?.value,
+      cardColor: $('edit-card-color')?.value,
+      accentColor: $('edit-accent-color')?.value,
+      textColor: $('edit-text-color')?.value,
+      secondaryTextColor: $('edit-secondary-text-color')?.value,
+      borderColor: $('edit-border-color')?.value
+    });
+  }
+
+  async function loadAppearance() {
+    const snapshot = await contentDoc.get();
+    const data = snapshot.exists ? (snapshot.data() || {}) : {};
+    const appearance = normalizeAppearance(data.appearance);
+    applyAppearance(appearance);
+    return appearance;
+  }
+
+  async function fillAppearanceAdmin() {
+    const snapshot = await contentDoc.get();
+    const data = snapshot.exists ? (snapshot.data() || {}) : {};
+    fillAppearanceForm(data.appearance);
   }
 
   // ---------- Game data compatibility ----------
@@ -570,6 +674,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   });
 
+  // ---------- Appearance controls ----------
+  function previewAppearanceForm() {
+    const a = getAppearanceFromForm();
+    if ($('banner-brightness-value')) $('banner-brightness-value').textContent = a.bannerBrightness;
+    if ($('overlay-opacity-value')) $('overlay-opacity-value').textContent = a.overlayOpacity;
+    applyAppearance(a);
+  }
+
+  ['edit-banner-url', 'edit-banner-brightness', 'edit-overlay-opacity', 'edit-bg-color', 'edit-card-color',
+   'edit-accent-color', 'edit-text-color', 'edit-secondary-text-color', 'edit-border-color'].forEach((id) => {
+    const el = $(id);
+    if (el) el.addEventListener('input', previewAppearanceForm);
+  });
+
+  $('appearance-dark-btn').addEventListener('click', () => {
+    const values = { bg:'#0f172a', card:'#1e293b', accent:'#3b82f6', text:'#f8fafc', secondary:'#94a3b8', border:'#334155' };
+    $('edit-bg-color').value=values.bg; $('edit-card-color').value=values.card; $('edit-accent-color').value=values.accent;
+    $('edit-text-color').value=values.text; $('edit-secondary-text-color').value=values.secondary; $('edit-border-color').value=values.border;
+    previewAppearanceForm();
+  });
+
+  $('appearance-light-btn').addEventListener('click', () => {
+    const values = { bg:'#f1f5f9', card:'#ffffff', accent:'#2563eb', text:'#0f172a', secondary:'#475569', border:'#cbd5e1' };
+    $('edit-bg-color').value=values.bg; $('edit-card-color').value=values.card; $('edit-accent-color').value=values.accent;
+    $('edit-text-color').value=values.text; $('edit-secondary-text-color').value=values.secondary; $('edit-border-color').value=values.border;
+    previewAppearanceForm();
+  });
+
+  $('reload-appearance-btn').addEventListener('click', async () => {
+    try { await fillAppearanceAdmin(); setMsg('appearance-msg', 'Đã tải lại giao diện từ Firebase.', true); }
+    catch (error) { setMsg('appearance-msg', 'Không thể tải giao diện: ' + error.message); }
+  });
+
+  $('save-appearance-btn').addEventListener('click', async () => {
+    if (!auth.currentUser) return setMsg('appearance-msg', 'Bạn cần đăng nhập Admin.');
+    const appearance = getAppearanceFromForm();
+    try {
+      await contentDoc.set({ appearance }, { merge: true });
+      applyAppearance(appearance);
+      setMsg('appearance-msg', 'Đã lưu giao diện lên Firebase. Các thiết bị khác sẽ lấy thiết lập này khi tải website.', true);
+    } catch (error) {
+      console.error(error);
+      setMsg('appearance-msg', 'Lỗi khi lưu giao diện: ' + error.message);
+    }
+  });
+
   // ---------- Common content ----------
   $('reload-content-btn').addEventListener('click', async () => {
     try {
@@ -608,7 +758,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     adminModal.style.display = 'block';
     try {
-      await Promise.all([fillCommonAdmin(), loadGamesPublic(true)]);
+      await Promise.all([fillCommonAdmin(), fillAppearanceAdmin(), loadGamesPublic(true)]);
       if (selectedGameId) await fillGameForm(selectedGameId);
     } catch (error) {
       console.error(error);
