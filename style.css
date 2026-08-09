@@ -65,3 +65,134 @@ body{font-family:'Inter',sans-serif;background:var(--bg-main);color:var(--text-p
 
 /* Asset size guidance */
 .asset-guide{line-height:1.65;margin-top:6px}.size-note{font-size:.82em;color:var(--accent-color);font-weight:600}
+
+/* =========================================================
+   ADMIN V11 - LEFT SIDEBAR ALWAYS, ONE PANEL AT A TIME
+   ========================================================= */
+#admin-dashboard-modal .admin-shell {
+  display: grid !important;
+  grid-template-columns: 250px minmax(0, 1fr) !important;
+  grid-template-rows: 92px minmax(0, 1fr) !important;
+  height: 100% !important;
+  min-height: 0 !important;
+}
+
+#admin-dashboard-modal .admin-topbar {
+  grid-column: 1 / -1 !important;
+  grid-row: 1 !important;
+}
+
+#admin-dashboard-modal .admin-sidebar {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 0 !important;
+  width: 250px !important;
+  min-width: 250px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 22px 14px !important;
+  background: #111827 !important;
+  border-right: 1px solid var(--border-color) !important;
+  border-bottom: 0 !important;
+}
+
+#admin-dashboard-modal .admin-sidebar-title {
+  display: block !important;
+  white-space: nowrap !important;
+}
+
+#admin-dashboard-modal .admin-nav-item {
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  flex: none !important;
+  text-align: left !important;
+  white-space: normal !important;
+  margin: 0 0 9px 0 !important;
+}
+
+#admin-dashboard-modal .admin-main-content {
+  grid-column: 2 !important;
+  grid-row: 2 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  padding: 30px !important;
+}
+
+#admin-dashboard-modal .admin-panel {
+  display: none !important;
+}
+
+#admin-dashboard-modal .admin-panel.active {
+  display: block !important;
+  animation: fadeIn .25s ease-in-out;
+}
+
+/* Mobile vẫn giữ mục lục bên trái, không chuyển thành hàng ngang */
+@media (max-width: 800px) {
+  #admin-dashboard-modal .admin-modal-content {
+    width: 96% !important;
+    height: 94vh !important;
+  }
+
+  #admin-dashboard-modal .admin-shell {
+    grid-template-columns: 185px minmax(0, 1fr) !important;
+    grid-template-rows: 82px minmax(0, 1fr) !important;
+  }
+
+  #admin-dashboard-modal .admin-sidebar {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    width: 185px !important;
+    min-width: 185px !important;
+    padding: 16px 9px !important;
+  }
+
+  #admin-dashboard-modal .admin-nav-item {
+    font-size: .82rem !important;
+    padding: 11px 9px !important;
+  }
+
+  #admin-dashboard-modal .admin-main-content {
+    grid-column: 2 !important;
+    grid-row: 2 !important;
+    padding: 18px !important;
+  }
+}
+
+@media (max-width: 520px) {
+  #admin-dashboard-modal .admin-shell {
+    grid-template-columns: 145px minmax(0, 1fr) !important;
+  }
+
+  #admin-dashboard-modal .admin-sidebar {
+    width: 145px !important;
+    min-width: 145px !important;
+  }
+
+  #admin-dashboard-modal .admin-sidebar-title {
+    font-size: .68rem !important;
+  }
+
+  #admin-dashboard-modal .admin-nav-item {
+    font-size: .72rem !important;
+    padding: 10px 7px !important;
+  }
+
+  #admin-dashboard-modal .admin-main-content {
+    padding: 13px !important;
+  }
+
+  #admin-dashboard-modal .admin-topbar-title {
+    font-size: 1rem !important;
+  }
+
+  #admin-dashboard-modal .admin-topbar-subtitle {
+    display: none !important;
+  }
+}
