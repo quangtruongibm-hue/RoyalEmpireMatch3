@@ -196,3 +196,22 @@ body{font-family:'Inter',sans-serif;background:var(--bg-main);color:var(--text-p
     display: none !important;
   }
 }
+
+
+/* ===== Admin Login: fixed at the top-right corner ===== */
+.admin-login-btn.top-right-admin-login {
+    position: fixed !important;
+    top: 18px !important;
+    right: 22px !important;
+    left: auto !important;
+    bottom: auto !important;
+    z-index: 9999 !important;
+    margin: 0 !important;
+}
+
+@media (max-width: 600px) {
+    .admin-login-btn.top-right-admin-login {
+        top: 12px !important;
+        right: 12px !important;
+    }
+}
