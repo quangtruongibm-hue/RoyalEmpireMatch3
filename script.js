@@ -234,8 +234,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ---------- Website appearance ----------
+  // Fallback mặc định chỉ dùng khi Firebase chưa có giao diện đã lưu.
+  // Khi Admin xóa ô banner, hệ thống sẽ quay lại banner đã lưu trên Firebase.
   const defaultAppearance = {
-    bannerUrl: 'https://github.com/quangtruongibm-hue/RoyalEmpireMatch3/blob/main/images/Banner03.png',
+    bannerUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80',
     bannerBrightness: 70,
     overlayOpacity: 35,
     bgColor: '#0f172a',
@@ -299,31 +301,39 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function getAppearanceFromForm() {
+    // Nếu người dùng để trống ô banner, KHÔNG dùng Unsplash/default.
+    // Hãy dùng banner đã lưu gần nhất trên Firebase.
+    const saved = firebaseAppearance || defaultAppearance;
+    const bannerInput = clean($('edit-banner-url')?.value);
+
     return normalizeAppearance({
-      bannerUrl: $('edit-banner-url')?.value,
-      bannerBrightness: $('edit-banner-brightness')?.value,
-      overlayOpacity: $('edit-overlay-opacity')?.value,
-      bgColor: $('edit-bg-color')?.value,
-      cardColor: $('edit-card-color')?.value,
-      accentColor: $('edit-accent-color')?.value,
-      textColor: $('edit-text-color')?.value,
-      secondaryTextColor: $('edit-secondary-text-color')?.value,
-      borderColor: $('edit-border-color')?.value
+      bannerUrl: bannerInput || saved.bannerUrl,
+      bannerBrightness: $('edit-banner-brightness')?.value || saved.bannerBrightness,
+      overlayOpacity: $('edit-overlay-opacity')?.value || saved.overlayOpacity,
+      bgColor: $('edit-bg-color')?.value || saved.bgColor,
+      cardColor: $('edit-card-color')?.value || saved.cardColor,
+      accentColor: $('edit-accent-color')?.value || saved.accentColor,
+      textColor: $('edit-text-color')?.value || saved.textColor,
+      secondaryTextColor: $('edit-secondary-text-color')?.value || saved.secondaryTextColor,
+      borderColor: $('edit-border-color')?.value || saved.borderColor
     });
   }
 
   async function loadAppearance() {
     const snapshot = await contentDoc.get();
     const data = snapshot.exists ? (snapshot.data() || {}) : {};
-    const appearance = normalizeAppearance(data.appearance);
-    applyAppearance(appearance);
-    return appearance;
+    // Đọc giao diện đã lưu từ Firebase trước; chỉ dùng defaultAppearance
+    // nếu Firebase chưa có dữ liệu appearance.
+    firebaseAppearance = normalizeAppearance(data.appearance);
+    applyAppearance(firebaseAppearance);
+    return firebaseAppearance;
   }
 
   async function fillAppearanceAdmin() {
     const snapshot = await contentDoc.get();
     const data = snapshot.exists ? (snapshot.data() || {}) : {};
-    fillAppearanceForm(data.appearance);
+    firebaseAppearance = normalizeAppearance(data.appearance);
+    fillAppearanceForm(firebaseAppearance);
   }
 
   // ---------- Game data compatibility ----------
@@ -755,6 +765,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appearance = getAppearanceFromForm();
     try {
       await contentDoc.set({ appearance }, { merge: true });
+      // Cập nhật bản giao diện Firebase trong bộ nhớ để lần sau xóa ô banner
+      // vẫn quay về đúng banner vừa lưu, không quay về Unsplash.
+      firebaseAppearance = appearance;
       applyAppearance(appearance);
       setMsg('appearance-msg', 'Đã lưu giao diện lên Firebase. Các thiết bị khác sẽ lấy thiết lập này khi tải website.', true);
     } catch (error) {
