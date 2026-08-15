@@ -231,12 +231,12 @@
 
           <div class="appearance-preview" id="appearance-preview">
             <div class="appearance-preview-title">Xem trước giao diện</div>
-            <div class="appearance-preview-bar"></div>
+            <div class="appearance-preview-bar" id="appearance-preview-bar" aria-live="polite"></div>
           </div>
 
           <div class="form-group">
             <label for="edit-banner-url">Ảnh Banner:</label>
-            <input id="edit-banner-url" type="text" placeholder="Tên file trong images/, ví dụ banner.jpg, hoặc URL ảnh https://...">
+            <input id="edit-banner-url" type="text" placeholder="URL ảnh hoặc GitHub /blob/...; ví dụ https://.../banner.jpg" autocomplete="off" spellcheck="false">
             <p class="hint asset-guide"><strong>🖼️ Kích thước khuyến nghị:</strong> <b>1920 × 400 px</b> (tỷ lệ khoảng 4.8:1). Có thể dùng 1920 × 500 px nếu muốn banner cao hơn. JPG, PNG hoặc WebP đều được. Nên chọn ảnh ngang, rõ nét và dung lượng vừa phải để hiển thị đẹp trên máy tính và điện thoại.
             <br>Có thể dùng ảnh trong thư mục <code>images</code> của GitHub (ví dụ <code>banner.jpg</code>), đường dẫn <code>images/banner.jpg</code>, hoặc URL ảnh từ website khác.</p>
           </div>
