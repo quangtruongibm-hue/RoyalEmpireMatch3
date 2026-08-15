@@ -235,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---------- Website appearance ----------
   const defaultAppearance = {
-    bannerUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80',
+    bannerUrl: 'https://github.com/quangtruongibm-hue/RoyalEmpireMatch3/blob/main/images/Banner03.png',
     bannerBrightness: 70,
     overlayOpacity: 35,
     bgColor: '#0f172a',
