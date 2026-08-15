@@ -56,6 +56,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     return `${folder}/${v.replace(/^\/+/, '')}`;
   }
 
+  function updateAppearancePreview(rawAppearance) {
+    const previewBar = $('appearance-preview-bar');
+    if (!previewBar) return;
+
+    const a = normalizeAppearance(rawAppearance);
+    const imageUrl = normalizeAsset(a.bannerUrl, 'images');
+    const overlay = Math.min(80, Math.max(0, Number(a.overlayOpacity) || 0)) / 100;
+    const brightness = Math.min(140, Math.max(20, Number(a.bannerBrightness) || 70)) / 100;
+
+    // Clear any previous state first so an invalid/new URL cannot leave the old image visible.
+    previewBar.classList.remove('preview-loading', 'preview-error-state');
+    previewBar.removeAttribute('data-preview-url');
+    previewBar.style.backgroundImage = '';
+    previewBar.style.filter = `brightness(${brightness})`;
+
+    if (!imageUrl) {
+      previewBar.classList.add('preview-error-state');
+      previewBar.textContent = 'Chưa có ảnh banner';
+      return;
+    }
+
+    previewBar.textContent = '';
+    previewBar.classList.add('preview-loading');
+    previewBar.style.setProperty('--preview-overlay-opacity', String(overlay));
+
+    const loader = new Image();
+    loader.onload = () => {
+      // Ignore an older request if the user has already typed another URL.
+      if ($('edit-banner-url') && normalizeAsset($('edit-banner-url').value, 'images') !== imageUrl) return;
+      previewBar.classList.remove('preview-loading', 'preview-error-state');
+      previewBar.style.backgroundImage = `linear-gradient(rgba(15,23,42,${overlay}), rgba(15,23,42,${overlay})), url("${imageUrl.replace(/\"/g, '%22')}")`;
+      previewBar.setAttribute('data-preview-url', imageUrl);
+    };
+    loader.onerror = () => {
+      if ($('edit-banner-url') && normalizeAsset($('edit-banner-url').value, 'images') !== imageUrl) return;
+      previewBar.classList.remove('preview-loading');
+      previewBar.classList.add('preview-error-state');
+      previewBar.textContent = 'Không tải được ảnh banner. Hãy kiểm tra URL hoặc file ảnh.';
+    };
+    loader.src = imageUrl;
+  }
+
   function youtubeEmbed(url) {
     try {
       const u = new URL(url);
@@ -193,7 +235,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ---------- Website appearance ----------
   const defaultAppearance = {
-    bannerUrl: 'https://github.com/quangtruongibm-hue/RoyalEmpireMatch3/blob/main/images/Banner03.png',
+    bannerUrl: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80',
     bannerBrightness: 70,
     overlayOpacity: 35,
     bgColor: '#0f172a',
@@ -236,7 +278,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.setProperty('--border-color', a.borderColor);
     root.style.setProperty('--hero-brightness', String(a.bannerBrightness / 100));
     root.style.setProperty('--hero-overlay-opacity', String(a.overlayOpacity / 100));
-    root.style.setProperty('--hero-image', `url("${normalizeAsset(a.bannerUrl, 'images')}")`);
+    root.style.setProperty('--hero-image', `url("${normalizeAsset(a.bannerUrl, 'images').replace(/\"/g, '%22')}")`);
+    updateAppearancePreview(a);
   }
 
   function fillAppearanceForm(rawAppearance) {
