@@ -243,3 +243,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg-main);color:var(--text-p
   background-color: var(--bg-main, #0f172a) !important;
   filter: none !important;
 }
+
+
+/* V15: banner is hidden until the current Firebase appearance is applied. */
+.hero-section.banner-pending::before {
+  background-image: none !important;
+  background-color: var(--bg-main, #0f172a) !important;
+  filter: none !important;
+}
