@@ -221,6 +221,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       applyAppearance(data.appearance);
     } catch (error) {
       console.error('Lỗi tải nội dung website:', error);
+      const hero = document.querySelector('.hero-section');
+      if (hero) hero.classList.remove('banner-pending');
+      applyAppearance(defaultAppearance);
     }
   }
 
@@ -296,6 +299,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.setProperty('--hero-overlay-opacity', String(a.overlayOpacity / 100));
     const heroUrl = normalizeAsset(a.bannerUrl, 'images');
     root.style.setProperty('--hero-image', heroUrl ? `url("${heroUrl.replace(/\"/g, '%22')}")` : 'none');
+    const hero = document.querySelector('.hero-section');
+    if (hero) hero.classList.remove('banner-pending');
     updateAppearancePreview(a);
   }
 
