@@ -236,3 +236,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg-main);color:var(--text-p
   .admin-topbar-title{font-size:1rem;}
   .admin-topbar-subtitle{font-size:.76rem;}
 }
+
+/* FINAL: never display an old/cached banner while Firebase is loading */
+.hero-section.banner-pending::before {
+  background-image: none !important;
+  background-color: var(--bg-main, #0f172a) !important;
+  filter: none !important;
+}
