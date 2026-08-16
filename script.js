@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   let gamesCache = [];
   let selectedGameId = '';
+  let firebaseAppearance = null;
 
   const loginModal = $('login-modal');
   const adminModal = $('admin-dashboard-modal');
@@ -234,10 +235,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // ---------- Website appearance ----------
-  // Fallback mặc định chỉ dùng khi Firebase chưa có giao diện đã lưu.
-  // Khi Admin xóa ô banner, hệ thống sẽ quay lại banner đã lưu trên Firebase.
+  // KHÔNG dùng bất kỳ banner mặc định/cũ nào. Banner chỉ lấy từ Firebase.
+  // Nếu Firebase còn chứa một URL banner cũ đã biết, coi như chưa có banner.
   const defaultAppearance = {
-    bannerUrl: 'https://github.com/quangtruongibm-hue/RoyalEmpireMatch3/blob/main/images/Banner03.png',
+    bannerUrl: '',
     bannerBrightness: 70,
     overlayOpacity: 35,
     bgColor: '#0f172a',
@@ -248,6 +249,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     borderColor: '#334155'
   };
 
+  const legacyBannerUrls = [
+    'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80',
+    'https://github.com/quangtruongibm-hue/RoyalEmpireMatch3/blob/main/images/Banner03.png'
+  ];
+
+  function isLegacyBanner(value) {
+    const v = clean(value);
+    if (!v) return false;
+    return legacyBannerUrls.some(old => v === old) ||
+      /photo-1511512578047-dfb367046420/i.test(v) ||
+      /RoyalEmpireMatch3\/blob\/main\/images\/Banner03\.png/i.test(v);
+  }
+
   function clampNumber(value, min, max, fallback) {
     const n = Number(value);
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
@@ -256,7 +270,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function normalizeAppearance(data) {
     const a = data && typeof data === 'object' ? data : {};
     return {
-      bannerUrl: clean(a.bannerUrl) || defaultAppearance.bannerUrl,
+      bannerUrl: isLegacyBanner(a.bannerUrl) ? '' : clean(a.bannerUrl),
       bannerBrightness: clampNumber(a.bannerBrightness, 20, 140, defaultAppearance.bannerBrightness),
       overlayOpacity: clampNumber(a.overlayOpacity, 0, 80, defaultAppearance.overlayOpacity),
       bgColor: /^#[0-9a-f]{6}$/i.test(a.bgColor || '') ? a.bgColor : defaultAppearance.bgColor,
@@ -280,7 +294,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     root.style.setProperty('--border-color', a.borderColor);
     root.style.setProperty('--hero-brightness', String(a.bannerBrightness / 100));
     root.style.setProperty('--hero-overlay-opacity', String(a.overlayOpacity / 100));
-    root.style.setProperty('--hero-image', `url("${normalizeAsset(a.bannerUrl, 'images').replace(/\"/g, '%22')}")`);
+    const heroUrl = normalizeAsset(a.bannerUrl, 'images');
+    root.style.setProperty('--hero-image', heroUrl ? `url("${heroUrl.replace(/\"/g, '%22')}")` : 'none');
     updateAppearancePreview(a);
   }
 
@@ -301,13 +316,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function getAppearanceFromForm() {
-    // Nếu người dùng để trống ô banner, KHÔNG dùng Unsplash/default.
-    // Hãy dùng banner đã lưu gần nhất trên Firebase.
     const saved = firebaseAppearance || defaultAppearance;
     const bannerInput = clean($('edit-banner-url')?.value);
 
     return normalizeAppearance({
-      bannerUrl: bannerInput || saved.bannerUrl,
+      // Ô trống = xóa banner hiện tại, tuyệt đối không quay về banner cũ.
+      bannerUrl: bannerInput,
       bannerBrightness: $('edit-banner-brightness')?.value || saved.bannerBrightness,
       overlayOpacity: $('edit-overlay-opacity')?.value || saved.overlayOpacity,
       bgColor: $('edit-bg-color')?.value || saved.bgColor,
@@ -322,8 +336,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadAppearance() {
     const snapshot = await contentDoc.get();
     const data = snapshot.exists ? (snapshot.data() || {}) : {};
-    // Đọc giao diện đã lưu từ Firebase trước; chỉ dùng defaultAppearance
-    // nếu Firebase chưa có dữ liệu appearance.
+    // Chỉ đọc banner hiện tại từ Firebase; không có fallback banner cũ.
     firebaseAppearance = normalizeAppearance(data.appearance);
     applyAppearance(firebaseAppearance);
     return firebaseAppearance;
@@ -765,8 +778,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const appearance = getAppearanceFromForm();
     try {
       await contentDoc.set({ appearance }, { merge: true });
-      // Cập nhật bản giao diện Firebase trong bộ nhớ để lần sau xóa ô banner
-      // vẫn quay về đúng banner vừa lưu, không quay về Unsplash.
+      // Cập nhật giao diện hiện tại sau khi lưu.
       firebaseAppearance = appearance;
       applyAppearance(appearance);
       setMsg('appearance-msg', 'Đã lưu giao diện lên Firebase. Các thiết bị khác sẽ lấy thiết lập này khi tải website.', true);
