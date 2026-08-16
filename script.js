@@ -252,19 +252,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     borderColor: '#334155'
   };
 
-  const legacyBannerUrls = [
-    'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1920&q=80',
-    'https://github.com/quangtruongibm-hue/RoyalEmpireMatch3/blob/main/images/Banner03.png'
-  ];
-
-  function isLegacyBanner(value) {
-    const v = clean(value);
-    if (!v) return false;
-    return legacyBannerUrls.some(old => v === old) ||
-      /photo-1511512578047-dfb367046420/i.test(v) ||
-      /RoyalEmpireMatch3\/blob\/main\/images\/Banner03\.png/i.test(v);
-  }
-
   function clampNumber(value, min, max, fallback) {
     const n = Number(value);
     return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
@@ -273,7 +260,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   function normalizeAppearance(data) {
     const a = data && typeof data === 'object' ? data : {};
     return {
-      bannerUrl: isLegacyBanner(a.bannerUrl) ? '' : clean(a.bannerUrl),
+      bannerUrl: clean(a.bannerUrl),
       bannerBrightness: clampNumber(a.bannerBrightness, 20, 140, defaultAppearance.bannerBrightness),
       overlayOpacity: clampNumber(a.overlayOpacity, 0, 80, defaultAppearance.overlayOpacity),
       bgColor: /^#[0-9a-f]{6}$/i.test(a.bgColor || '') ? a.bgColor : defaultAppearance.bgColor,
