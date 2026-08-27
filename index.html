@@ -11,7 +11,7 @@
 <header class="hero-section banner-pending">
   <div class="hero-content">
     <h1>Khám Phá Thế Giới Ảo</h1>
-    <p>Hãy trải nghiệm những tuyệt tác game mới nhất từ Studio của chúng tôi</p>
+    <p>Hãy trải nghiệm những ứng dụng tuyệt tác mới nhất từ Studio của chúng tôi</p>
   </div>
   <button id="admin-login-btn" class="admin-login-btn top-right-admin-login">Admin Login</button>
 </header>
@@ -21,8 +21,8 @@
     <nav>
       <ul id="menu-list">
         <li class="active" data-target="company-info">Giới thiệu công ty</li>
-        <li data-target="game-info">Trò chơi phát hành</li>
-        <li data-target="player-policy">Chính sách người chơi</li>
+        <li data-target="game-info">Ứng dụng phát hành</li>
+        <li data-target="player-policy">Chính sách áp dụng</li>
         <li data-target="programs">Chương trình</li>
         <li data-target="contact-support">Liên hệ hỗ trợ</li>
       </ul>
@@ -36,21 +36,21 @@
     </section>
 
     <section id="game-info" class="content-section">
-      <h2>Trò Chơi Phát Hành</h2>
+      <h2>Ứng dụng Phát Hành</h2>
       <div class="public-game-selector-wrap">
         <label for="public-game-select">Chọn trò chơi:</label>
         <select id="public-game-select">
-          <option value="">Đang tải danh sách trò chơi...</option>
+          <option value="">Đang tải danh sách ứng dụng...</option>
         </select>
       </div>
 
-      <div id="game-public-empty" class="card">Chưa có trò chơi được phát hành.</div>
+      <div id="game-public-empty" class="card">Chưa có ứng dụng được phát hành.</div>
       <div id="game-public-content" class="game-intro" hidden>
         <h3 id="public-game-name"></h3>
         <div id="public-game-desc" class="card"></div>
 
         <div class="download-btn-container">
-          <a id="public-game-playstore" class="download-btn" href="#" target="_blank" rel="noopener">Tải Trò Chơi trên CH Play</a>
+          <a id="public-game-playstore" class="download-btn" href="#" target="_blank" rel="noopener">Tải ứng dụng trên CH Play</a>
         </div>
 
         <h3>Hình Ảnh Minh Họa</h3>
@@ -108,7 +108,7 @@
       <header class="admin-topbar">
         <div>
           <div class="admin-topbar-title">Giao Diện Quản Lý Web Của Admin</div>
-          <div class="admin-topbar-subtitle">Quản lý trò chơi và nội dung website</div>
+          <div class="admin-topbar-subtitle">Quản lý ứng dụng và nội dung website</div>
         </div>
         <div class="admin-topbar-actions">
           <button id="logout-btn" class="secondary-btn">Đăng Xuất</button>
@@ -144,33 +144,33 @@
           </section>
         </section>
 
-        <!-- Trò chơi phát hành -->
+        <!-- Ứng dụng phát hành -->
         <section id="admin-panel-games" class="admin-panel">
           <div class="admin-panel-heading">
-            <h2>🎮 Trò Chơi Phát Hành</h2>
-            <p>Chọn game để lấy toàn bộ dữ liệu từ Firebase, chỉnh sửa hoặc xóa.</p>
+            <h2>🎮 Ứng dụng Phát Hành</h2>
+            <p>Chọn Ứng dụng để lấy toàn bộ dữ liệu từ Firebase, chỉnh sửa hoặc xóa.</p>
           </div>
 
           <div class="form-group">
-            <label for="admin-game-select">Trò chơi đang chỉnh sửa:</label>
+            <label for="admin-game-select"> Ứng dụng đang chỉnh sửa:</label>
             <select id="admin-game-select">
-              <option value="">-- Thêm trò chơi mới --</option>
+              <option value="">-- Thêm Ứng dụng mới --</option>
             </select>
           </div>
 
           <div class="button-row">
-            <button id="new-game-btn" class="secondary-btn">Thêm Game Mới</button>
-            <button id="delete-game-btn" class="danger-btn">Xóa Game</button>
-            <button id="reload-games-btn" class="secondary-btn">Tải lại Games</button>
+            <button id="new-game-btn" class="secondary-btn">Thêm Ứng dụng Mới</button>
+            <button id="delete-game-btn" class="danger-btn">Xóa ứng dụng</button>
+            <button id="reload-games-btn" class="secondary-btn">Tải lại ứng dụng</button>
           </div>
 
           <div class="form-group">
-            <label for="edit-game-name">Tên trò chơi:</label>
+            <label for="edit-game-name">Tên ứng dụng:</label>
             <input id="edit-game-name" type="text" placeholder="Ví dụ: Royal Empire Match 3">
           </div>
 
           <div class="form-group">
-            <label for="edit-game-desc">Giới thiệu trò chơi (HTML):</label>
+            <label for="edit-game-desc">Giới thiệu ứng dụng (HTML):</label>
             <textarea id="edit-game-desc" rows="8" placeholder="<p>...</p>"></textarea>
           </div>
 
