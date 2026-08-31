@@ -859,4 +859,321 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   await loadSiteContent();
   await loadGamesPublic(false);
+
+  // =========================================================
+  // PLAYER DATA + FCM ADMIN TOOLS
+  // =========================================================
+  const playersCollection = db.collection('players');
+  const fcmCampaignsCollection = db.collection('fcm_campaigns');
+  const FCM_BACKEND_BASE = 'https://us-central1-royal-empire-match-3.cloudfunctions.net';
+  const FCM_BACKEND_URL = `${FCM_BACKEND_BASE}/sendFcmNotification`;
+
+  async function adminBackendPost(functionName, payload = {}) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Bạn cần đăng nhập Admin.');
+    const idToken = await user.getIdToken(true);
+    const response = await fetch(`${FCM_BACKEND_BASE}/${functionName}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `Backend HTTP ${response.status}`);
+    return result;
+  }
+  let playersCache = [];
+  let filteredPlayersCache = [];
+  let playersLoaded = false;
+
+  function playerNumber(data, keys) {
+    for (const key of keys) {
+      const n = Number(data?.[key]);
+      if (Number.isFinite(n)) return n;
+    }
+    return 0;
+  }
+
+  function playerString(data, keys) {
+    for (const key of keys) {
+      const v = data?.[key];
+      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v);
+    }
+    return '';
+  }
+
+  function playerTimestamp(data, keys) {
+    for (const key of keys) {
+      const v = data?.[key];
+      if (!v) continue;
+      if (typeof v.toDate === 'function') return v.toDate();
+      if (v instanceof Date) return v;
+      const d = new Date(v);
+      if (!Number.isNaN(d.getTime())) return d;
+    }
+    return null;
+  }
+
+  function normalizePlayer(doc) {
+    const data = doc.data() || {};
+    return {
+      uid: doc.id,
+      raw: data,
+      level: playerNumber(data, ['current_level', 'unlock_level', 'level']),
+      gold: playerNumber(data, ['gold', 'GoldIten']),
+      time: playerNumber(data, ['time', 'TimeIten']),
+      move: playerNumber(data, ['move', 'MoveIten']),
+      bomb: playerNumber(data, ['bomb', 'BombIten']),
+      ads: playerNumber(data, ['total_watch_ads', 'reward_ad_count', 'TotalWatchAds']),
+      buy1000: playerNumber(data, ['total_buy_gold_1000', 'TotalBuygold1000']),
+      buy5000: playerNumber(data, ['total_buy_gold_5000', 'TotalBuygold5000']),
+      noAds: playerNumber(data, ['no_ads', 'NoAdsIten']),
+      lastLogin: playerTimestamp(data, ['last_login', 'lastLogin']),
+      lastLoginDate: playerString(data, ['last_login_date', 'LastLoginDate']),
+      fcmToken: playerString(data, ['fcm_token', 'fcmToken'])
+    };
+  }
+
+  function localDateKey(date) {
+    if (!date) return '';
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+
+  function daysSince(date) {
+    if (!date) return Infinity;
+    const today = new Date();
+    const a = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    const b = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    return Math.max(0, Math.floor((a - b) / 86400000));
+  }
+
+  function formatPlayerDate(date, fallback = '') {
+    if (date) return date.toLocaleString('vi-VN');
+    return fallback || '—';
+  }
+
+  function hasPurchased(p) {
+    return p.buy1000 > 0 || p.buy5000 > 0 || p.noAds > 0;
+  }
+
+  function renderPlayers() {
+    const tbody = $('players-table')?.querySelector('tbody');
+    if (!tbody) return;
+    const search = clean($('player-search')?.value).toLowerCase();
+    const minLevel = $('player-level-min')?.value === '' ? null : Number($('player-level-min')?.value);
+    const maxLevel = $('player-level-max')?.value === '' ? null : Number($('player-level-max')?.value);
+    const maxAds = $('player-ads-max')?.value === '' ? null : Number($('player-ads-max')?.value);
+    const loginFilter = $('player-login-filter')?.value || 'all';
+    const purchaseFilter = $('player-purchase-filter')?.value || 'all';
+
+    filteredPlayersCache = playersCache.filter((p) => {
+      if (search && !p.uid.toLowerCase().includes(search)) return false;
+      if (minLevel !== null && p.level < minLevel) return false;
+      if (maxLevel !== null && p.level > maxLevel) return false;
+      if (maxAds !== null && p.ads > maxAds) return false;
+      if (loginFilter === 'today' && localDateKey(p.lastLogin) !== localDateKey(new Date())) return false;
+      if (/^\d+$/.test(loginFilter) && daysSince(p.lastLogin) < Number(loginFilter)) return false;
+      if (purchaseFilter === 'never' && hasPurchased(p)) return false;
+      if (purchaseFilter === 'gold' && p.buy1000 + p.buy5000 <= 0) return false;
+      if (purchaseFilter === 'remove_ads' && p.noAds <= 0) return false;
+      return true;
+    });
+
+    tbody.innerHTML = '';
+    if (!filteredPlayersCache.length) {
+      const tr = document.createElement('tr');
+      const td = document.createElement('td'); td.colSpan = 12; td.className = 'empty-table'; td.textContent = 'Không có người chơi phù hợp.';
+      tr.appendChild(td); tbody.appendChild(tr);
+    } else {
+      const frag = document.createDocumentFragment();
+      filteredPlayersCache.forEach((p) => {
+        const tr = document.createElement('tr');
+        const values = [p.uid, p.level, p.gold, p.time, p.move, p.bomb, p.ads, p.buy1000, p.buy5000, p.noAds ? 'Có' : 'Không', formatPlayerDate(p.lastLogin, p.lastLoginDate), p.fcmToken ? 'Có' : 'Không'];
+        values.forEach((value) => { const td = document.createElement('td'); td.textContent = value; tr.appendChild(td); });
+        frag.appendChild(tr);
+      });
+      tbody.appendChild(frag);
+    }
+
+    const withToken = filteredPlayersCache.filter((p) => p.fcmToken).length;
+    if ($('players-summary')) $('players-summary').textContent = `Hiển thị ${filteredPlayersCache.length.toLocaleString('vi-VN')} / ${playersCache.length.toLocaleString('vi-VN')} người chơi · Có FCM: ${withToken.toLocaleString('vi-VN')}`;
+  }
+
+  async function loadPlayers() {
+    if (!auth.currentUser) return setMsg('players-status', 'Bạn cần đăng nhập Admin.');
+    const status = $('players-status');
+    if (status) status.textContent = 'Đang tải...';
+    try {
+      const result = await adminBackendPost('getAdminPlayers');
+      playersCache = (result.players || []).map((obj) => ({
+        uid: obj.uid, raw: obj, level: playerNumber(obj, ['current_level','unlock_level','level']),
+        gold: playerNumber(obj, ['gold','GoldIten']), time: playerNumber(obj, ['time','TimeIten']),
+        move: playerNumber(obj, ['move','MoveIten']), bomb: playerNumber(obj, ['bomb','BombIten']),
+        ads: playerNumber(obj, ['total_watch_ads','reward_ad_count','TotalWatchAds']),
+        buy1000: playerNumber(obj, ['total_buy_gold_1000','TotalBuygold1000']),
+        buy5000: playerNumber(obj, ['total_buy_gold_5000','TotalBuygold5000']),
+        noAds: playerNumber(obj, ['no_ads','NoAdsIten']), lastLogin: playerTimestamp(obj, ['last_login','lastLogin']),
+        lastLoginDate: playerString(obj, ['last_login_date','LastLoginDate']), fcmToken: playerString(obj, ['fcm_token','fcmToken'])
+      }));
+      playersLoaded = true;
+      if (status) status.textContent = `Đã tải ${playersCache.length.toLocaleString('vi-VN')} người chơi`;
+      renderPlayers();
+      updateFcmTargetSummary();
+    } catch (error) {
+      console.error(error);
+      if (status) status.textContent = 'Lỗi tải dữ liệu';
+      setMsg('players-status', 'Không thể tải players: ' + error.message);
+    }
+  }
+
+  function exportPlayersExcel() {
+    if (!playersLoaded) return setMsg('players-status', 'Hãy tải dữ liệu người chơi trước.');
+    const rows = filteredPlayersCache.map((p) => ({
+      'Player UID': p.uid, 'Level': p.level, 'Gold': p.gold, 'Time': p.time, 'Move': p.move, 'Bomb': p.bomb,
+      'Total Watch Ads': p.ads, 'Total Buy Gold 1000': p.buy1000, 'Total Buy Gold 5000': p.buy5000,
+      'Remove Ads': p.noAds ? 'Có' : 'Không', 'Last Login': formatPlayerDate(p.lastLogin, p.lastLoginDate), 'FCM Token': p.fcmToken || ''
+    }));
+    if (!rows.length) return setMsg('players-status', 'Không có dữ liệu để xuất.');
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows);
+    XLSX.utils.book_append_sheet(wb, ws, 'Players');
+    XLSX.writeFile(wb, `players_${localDateKey(new Date())}.xlsx`);
+  }
+
+  function getFcmCriteria() {
+    return {
+      all: $('fcm-all')?.checked,
+      inactiveToday: $('fcm-inactive-today')?.checked,
+      inactive2Days: $('fcm-inactive-2days')?.checked,
+      level50: $('fcm-level-50')?.checked,
+      level100: $('fcm-level-100')?.checked,
+      ads10: $('fcm-ads-10')?.checked,
+      neverBuy: $('fcm-never-buy')?.checked
+    };
+  }
+
+  function getFcmTargets() {
+    if (!playersLoaded) return [];
+    const c = getFcmCriteria();
+    const specific = c.inactiveToday || c.inactive2Days || c.level50 || c.level100 || c.ads10 || c.neverBuy;
+    if (c.all || !specific) return playersCache.slice();
+    return playersCache.filter((p) => {
+      if (c.inactiveToday && daysSince(p.lastLogin) < 1) return false;
+      if (c.inactive2Days && daysSince(p.lastLogin) < 2) return false;
+      if (c.level50 && p.level >= 50) return false;
+      if (c.level100 && p.level >= 100) return false;
+      if (c.ads10 && p.ads >= 10) return false;
+      if (c.neverBuy && hasPurchased(p)) return false;
+      return true;
+    });
+  }
+
+  function fcmAudienceLabel() {
+    const c = getFcmCriteria();
+    if (c.all) return 'Tất cả người chơi';
+    const labels = [];
+    if (c.inactiveToday) labels.push('Chưa đăng nhập hôm nay');
+    if (c.inactive2Days) labels.push('Đã 2 ngày chưa đăng nhập');
+    if (c.level50) labels.push('Level < 50');
+    if (c.level100) labels.push('Level < 100');
+    if (c.ads10) labels.push('Ads < 10');
+    if (c.neverBuy) labels.push('Chưa từng mua');
+    return labels.join(' + ') || 'Tất cả người chơi';
+  }
+
+  function updateFcmTargetSummary() {
+    const targets = getFcmTargets();
+    const withToken = targets.filter((p) => p.fcmToken);
+    if ($('fcm-player-count')) $('fcm-player-count').textContent = targets.length.toLocaleString('vi-VN');
+    if ($('fcm-token-count')) $('fcm-token-count').textContent = withToken.length.toLocaleString('vi-VN');
+    if ($('fcm-no-token-count')) $('fcm-no-token-count').textContent = (targets.length - withToken.length).toLocaleString('vi-VN');
+    return targets;
+  }
+
+  function bindFcmCriteria() {
+    const all = $('fcm-all');
+    const others = ['fcm-inactive-today','fcm-inactive-2days','fcm-level-50','fcm-level-100','fcm-ads-10','fcm-never-buy'];
+    if (all) all.addEventListener('change', () => { if (all.checked) others.forEach((id) => { if ($(id)) $(id).checked = false; }); updateFcmTargetSummary(); });
+    others.forEach((id) => { const el = $(id); if (el) el.addEventListener('change', () => { if (el.checked && all) all.checked = false; if (!others.some((x) => $(x)?.checked) && all) all.checked = true; updateFcmTargetSummary(); }); });
+  }
+
+  function parseFcmData() {
+    const text = clean($('fcm-data')?.value);
+    if (!text) return {};
+    try { const obj = JSON.parse(text); if (!obj || typeof obj !== 'object' || Array.isArray(obj)) throw new Error('Data phải là JSON object.'); return obj; }
+    catch (e) { throw new Error('Data JSON không hợp lệ: ' + e.message); }
+  }
+
+  async function callFcmBackend(tokens, testOnly = false) {
+    const user = auth.currentUser;
+    if (!user) throw new Error('Chưa đăng nhập Admin.');
+    if (!tokens.length) throw new Error('Nhóm người chơi này chưa có FCM Token.');
+    const title = clean($('fcm-title')?.value);
+    const body = clean($('fcm-body')?.value);
+    if (!title || !body) throw new Error('Vui lòng nhập tiêu đề và nội dung.');
+    const idToken = await user.getIdToken(true);
+    const response = await fetch(FCM_BACKEND_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${idToken}` },
+      body: JSON.stringify({ title, body, data: parseFcmData(), tokens: testOnly ? tokens.slice(0, 1) : tokens, testOnly, audience: fcmAudienceLabel() })
+    });
+    const result = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(result.error || `Backend HTTP ${response.status}`);
+    return result;
+  }
+
+  async function sendFcm(testOnly) {
+    try {
+      const targets = updateFcmTargetSummary();
+      const tokens = targets.filter((p) => p.fcmToken).map((p) => p.fcmToken);
+      if (!tokens.length) return setMsg('fcm-msg', 'Không có FCM Token trong nhóm này.');
+      const title = clean($('fcm-title')?.value);
+      if (!title) return setMsg('fcm-msg', 'Vui lòng nhập tiêu đề.');
+      if (!testOnly && !confirm(`Gửi thông báo đến ${tokens.length.toLocaleString('vi-VN')} thiết bị?\n\nĐối tượng: ${fcmAudienceLabel()}`)) return;
+      setMsg('fcm-msg', testOnly ? 'Đang gửi thử...' : 'Đang gửi...');
+      const result = await callFcmBackend(tokens, testOnly);
+      const prefix = testOnly ? 'Gửi thử thành công.' : 'Gửi FCM thành công.';
+      setMsg('fcm-msg', `${prefix} Thành công: ${result.successCount || 0}, thất bại: ${result.failureCount || 0}.`, true);
+      if (!testOnly) await loadFcmHistory();
+    } catch (error) {
+      console.error(error);
+      setMsg('fcm-msg', error.message || 'Không thể gửi FCM.');
+    }
+  }
+
+  async function loadFcmHistory() {
+    const tbody = $('fcm-history-table')?.querySelector('tbody');
+    if (!tbody) return;
+    try {
+      const result = await adminBackendPost('getFcmHistory');
+      const campaigns = result.campaigns || [];
+      tbody.innerHTML = '';
+      if (!campaigns.length) { const tr=document.createElement('tr'); const td=document.createElement('td'); td.colSpan=6; td.className='empty-table'; td.textContent='Chưa có chiến dịch.'; tr.appendChild(td); tbody.appendChild(tr); return; }
+      campaigns.forEach((d) => {
+        const tr = document.createElement('tr');
+        [formatPlayerDate(playerTimestamp(d, ['createdAt'])), d.title || '', d.audience || '', d.tokenCount || 0, d.successCount || 0, d.failureCount || 0].forEach((v) => { const td=document.createElement('td'); td.textContent=v; tr.appendChild(td); });
+        tbody.appendChild(tr);
+      });
+      setMsg('fcm-history-msg', `Đã tải ${campaigns.length} chiến dịch gần nhất.`, true);
+    } catch (error) { console.error(error); setMsg('fcm-history-msg', 'Không thể tải lịch sử: ' + error.message); }
+  }
+
+  $('load-players-btn')?.addEventListener('click', loadPlayers);
+  $('export-players-btn')?.addEventListener('click', exportPlayersExcel);
+  ['player-search','player-level-min','player-level-max','player-ads-max','player-login-filter','player-purchase-filter'].forEach((id) => $(id)?.addEventListener('input', renderPlayers));
+  ['player-login-filter','player-purchase-filter'].forEach((id) => $(id)?.addEventListener('change', renderPlayers));
+  $('clear-player-filters-btn')?.addEventListener('click', () => {
+    ['player-search','player-level-min','player-level-max','player-ads-max'].forEach((id) => { if ($(id)) $(id).value=''; });
+    if ($('player-login-filter')) $('player-login-filter').value='all';
+    if ($('player-purchase-filter')) $('player-purchase-filter').value='all';
+    renderPlayers();
+  });
+  $('refresh-fcm-targets-btn')?.addEventListener('click', async () => { if (!playersLoaded) await loadPlayers(); updateFcmTargetSummary(); });
+  $('send-fcm-test-btn')?.addEventListener('click', () => sendFcm(true));
+  $('send-fcm-btn')?.addEventListener('click', () => sendFcm(false));
+  $('load-fcm-history-btn')?.addEventListener('click', loadFcmHistory);
+  bindFcmCriteria();
+
 });
