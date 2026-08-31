@@ -222,6 +222,56 @@
           <p id="game-msg" class="success-msg"></p>
         </section>
 
+        <!-- Dữ liệu người chơi -->
+        <section id="admin-panel-players" class="admin-panel">
+          <div class="admin-panel-heading"><h2>👤 Dữ Liệu Người Chơi</h2><p>Lấy dữ liệu từ Firestore <code>players</code>. Chỉ tải khi bạn bấm nút để hạn chế số lần đọc.</p></div>
+          <div class="player-toolbar"><button id="load-players-btn" class="primary-btn">🔄 Tải dữ liệu người chơi</button><button id="export-players-btn" class="secondary-btn">📥 Xuất Excel</button><span id="players-status" class="status-badge">Chưa tải dữ liệu</span></div>
+          <div class="player-filters">
+            <div class="form-group"><label for="player-search">Tìm Player UID:</label><input id="player-search" type="text" placeholder="Nhập UID..."></div>
+            <div class="form-group"><label for="player-level-min">Level từ:</label><input id="player-level-min" type="number" min="0" placeholder="0"></div>
+            <div class="form-group"><label for="player-level-max">Level đến:</label><input id="player-level-max" type="number" min="0" placeholder="1000"></div>
+            <div class="form-group"><label for="player-ads-max">Ads tối đa:</label><input id="player-ads-max" type="number" min="0" placeholder="10"></div>
+            <div class="form-group"><label for="player-login-filter">Đăng nhập:</label><select id="player-login-filter"><option value="all">Tất cả</option><option value="today">Hôm nay</option><option value="1">Chưa đăng nhập 1 ngày+</option><option value="2">Chưa đăng nhập 2 ngày+</option><option value="7">Chưa đăng nhập 7 ngày+</option></select></div>
+            <div class="form-group"><label for="player-purchase-filter">Mua hàng:</label><select id="player-purchase-filter"><option value="all">Tất cả</option><option value="never">Chưa từng mua</option><option value="gold">Đã mua Gold</option><option value="remove_ads">Đã mua Remove Ads</option></select></div>
+          </div>
+          <div class="button-row"><button id="clear-player-filters-btn" class="secondary-btn">Xóa bộ lọc</button></div>
+          <div id="players-summary" class="players-summary"></div>
+          <div class="table-wrap"><table id="players-table"><thead><tr><th>UID</th><th>Level</th><th>Gold</th><th>Time</th><th>Move</th><th>Bomb</th><th>Ads</th><th>Gold 1000</th><th>Gold 5000</th><th>Remove Ads</th><th>Last Login</th><th>FCM</th></tr></thead><tbody><tr><td colspan="12" class="empty-table">Chưa tải dữ liệu.</td></tr></tbody></table></div>
+        </section>
+
+        <!-- FCM Notification -->
+        <section id="admin-panel-fcm" class="admin-panel">
+          <div class="admin-panel-heading"><h2>🔔 FCM Notification</h2><p>Chọn nhóm người chơi, kiểm tra số lượng rồi gửi thông báo.</p></div>
+          <div class="fcm-grid">
+            <div class="fcm-card"><h3>1. Đối tượng</h3>
+              <label class="check-row"><input type="checkbox" id="fcm-all" checked> Tất cả người chơi</label>
+              <label class="check-row"><input type="checkbox" id="fcm-inactive-today"> Chưa đăng nhập hôm nay</label>
+              <label class="check-row"><input type="checkbox" id="fcm-inactive-2days"> Đã 2 ngày chưa đăng nhập</label>
+              <label class="check-row"><input type="checkbox" id="fcm-level-50"> Level dưới 50</label>
+              <label class="check-row"><input type="checkbox" id="fcm-level-100"> Level dưới 100</label>
+              <label class="check-row"><input type="checkbox" id="fcm-ads-10"> Xem quảng cáo dưới 10 lần</label>
+              <label class="check-row"><input type="checkbox" id="fcm-never-buy"> Chưa từng mua Gold / Remove Ads</label>
+              <p class="hint">Các điều kiện cụ thể được kết hợp theo AND.</p>
+            </div>
+            <div class="fcm-card"><h3>2. Nội dung</h3>
+              <div class="form-group"><label for="fcm-title">Tiêu đề:</label><input id="fcm-title" maxlength="100" placeholder="🎁 Royal Empire Match 3"></div>
+              <div class="form-group"><label for="fcm-body">Nội dung:</label><textarea id="fcm-body" rows="5" maxlength="500" placeholder="Bạn đã lâu chưa quay lại! Hãy quay lại nhận phần thưởng hôm nay."></textarea></div>
+              <div class="form-group"><label for="fcm-data">Data JSON (không bắt buộc):</label><textarea id="fcm-data" rows="3" placeholder='{"screen":"shop","reward":"100_gold"}'></textarea></div>
+            </div>
+          </div>
+          <div class="fcm-result-box"><div><strong>Người chơi phù hợp:</strong> <span id="fcm-player-count">0</span></div><div><strong>Có FCM Token:</strong> <span id="fcm-token-count">0</span></div><div><strong>Không có Token:</strong> <span id="fcm-no-token-count">0</span></div></div>
+          <div class="button-row"><button id="refresh-fcm-targets-btn" class="secondary-btn">🔄 Tính lại đối tượng</button><button id="send-fcm-test-btn" class="secondary-btn">🧪 Gửi thử</button><button id="send-fcm-btn" class="primary-btn">🚀 Gửi thông báo</button></div>
+          <p id="fcm-msg" class="success-msg"></p><div class="hint">Website không chứa Server Key. Gửi thật đi qua Firebase Cloud Functions + Firebase Admin SDK.</div>
+        </section>
+
+        <!-- FCM History -->
+        <section id="admin-panel-fcm-history" class="admin-panel">
+          <div class="admin-panel-heading"><h2>📜 Lịch Sử Gửi FCM</h2><p>Lịch sử chiến dịch được lưu tại Firestore <code>fcm_campaigns</code>.</p></div>
+          <button id="load-fcm-history-btn" class="primary-btn">🔄 Tải lịch sử</button>
+          <div class="table-wrap"><table id="fcm-history-table"><thead><tr><th>Thời gian</th><th>Tiêu đề</th><th>Đối tượng</th><th>Token</th><th>Thành công</th><th>Thất bại</th></tr></thead><tbody><tr><td colspan="6" class="empty-table">Chưa tải lịch sử.</td></tr></tbody></table></div>
+          <p id="fcm-history-msg" class="success-msg"></p>
+        </section>
+
         <!-- Chỉnh sửa giao diện -->
         <section id="admin-panel-appearance" class="admin-panel">
           <div class="admin-panel-heading">
@@ -293,6 +343,7 @@
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/12.0.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyBi9u061D6ARlrU8FBr6eObaknVrnfJYbk",
@@ -307,6 +358,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script src="script.js?v=20260816-banner-v15-clean"></script>
+<script src="script.js?v=20260831-admin-v1"></script>
 </body>
 </html>
