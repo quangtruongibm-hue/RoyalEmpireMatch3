@@ -120,7 +120,10 @@
       <aside class="admin-sidebar">
         <div class="admin-sidebar-title">Mục lục quản lý</div>
         <button class="admin-nav-item active" data-admin-target="admin-panel-password">🔐 Thay đổi mật khẩu</button>
-        <button class="admin-nav-item" data-admin-target="admin-panel-games">🎮 ứng dụng phát hành</button>
+        <button class="admin-nav-item" data-admin-target="admin-panel-games">🎮 Ứng dụng phát hành</button>
+        <button class="admin-nav-item" data-admin-target="admin-panel-players">👤 Dữ liệu người chơi</button>
+        <button class="admin-nav-item" data-admin-target="admin-panel-fcm">🔔 Gửi thông báo FCM</button>
+        <button class="admin-nav-item" data-admin-target="admin-panel-fcm-history">📜 Lịch sử FCM</button>
         <button class="admin-nav-item" data-admin-target="admin-panel-content">📝 Các nội dung khác</button>
         <button class="admin-nav-item" data-admin-target="admin-panel-appearance">🎨 Chỉnh sửa giao diện</button>
       </aside>
@@ -358,6 +361,6 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 </script>
-<script src="script.js?v=20260831-admin-v1"></script>
+<script src="script.js?v=20260831-admin-v2"></script>
 </body>
 </html>
